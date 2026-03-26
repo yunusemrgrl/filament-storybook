@@ -6,6 +6,12 @@
             </div>
         </section>
     @else
+        @php
+            $booleanType = \App\Filament\Storybook\KnobDefinition::TYPE_BOOLEAN;
+            $numberType = \App\Filament\Storybook\KnobDefinition::TYPE_NUMBER;
+            $selectType = \App\Filament\Storybook\KnobDefinition::TYPE_SELECT;
+        @endphp
+
         <section class="docs-card playground-preview-panel">
             <div class="docs-card-head">
                 <div>
@@ -17,6 +23,31 @@
                     Buradaki demo yalnizca secili variant ve knobs kombinasyonunu gosterir.
                 </p>
             </div>
+
+            <div class="playground-preview-toolbar">
+                <button type="button" class="docs-action-button is-primary" wire:click="validatePreview">
+                    Validate Preview
+                </button>
+
+                <button type="button" class="docs-action-button is-secondary" wire:click="resetPreview">
+                    Reset Value
+                </button>
+            </div>
+
+            @if (filled($previewValidationMessage))
+                <div @class([
+                    'docs-callout',
+                    'preview-validation-callout',
+                    'is-success' => $previewValidationState === 'success',
+                    'is-danger' => $previewValidationState === 'danger',
+                ])>
+                    <strong>
+                        {{ $previewValidationState === 'success' ? 'Validation passed' : 'Validation feedback' }}
+                    </strong>
+
+                    <p>{{ $previewValidationMessage }}</p>
+                </div>
+            @endif
 
             <div class="playground-preview-frame">
                 <div class="preview-card">
@@ -33,7 +64,7 @@
                 </div>
 
                 <p class="docs-card-copy">
-                    Knobs, preset ustune cikarak label, helper text ve field state gibi detaylari serbestce test etmenizi saglar.
+                    Knobs yalnizca secili variant ile uyumlu ayarlari acarak browser ve validation tarafinda anlamsiz kombinasyonlari gizler.
                 </p>
             </div>
 
@@ -49,52 +80,67 @@
                 </div>
             </div>
 
-            <div class="knobs-grid">
-                @foreach ($knobDefinitions as $knob)
-                    @php
-                        $name = $knob->getName();
-                        $value = $knobValues[$name] ?? $knob->getDefault();
-                        $isBoolean = $knob->getType() === \App\Filament\Storybook\KnobDefinition::TYPE_BOOLEAN;
-                        $isNumber = $knob->getType() === \App\Filament\Storybook\KnobDefinition::TYPE_NUMBER;
-                    @endphp
-
-                    <div class="knob-field" wire:key="knob-{{ $name }}">
-                        <div class="knob-label">
-                            <span>{{ $knob->getLabel() }}</span>
-
-                            @if (filled($knob->getHelperText()))
-                                <x-filament::icon-button
-                                    class="knob-help-btn"
-                                    color="gray"
-                                    icon="heroicon-o-question-mark-circle"
-                                    icon-size="sm"
-                                    :label="$knob->getHelperText()"
-                                    size="xs"
-                                    :tooltip="$knob->getHelperText()"
-                                />
-                            @endif
-                        </div>
-
-                        @if ($isBoolean)
-                            <button type="button" class="knob-toggle" wire:click="toggleBooleanKnob('{{ $name }}')">
-                                <span @class(['knob-track', 'on' => $value])>
-                                    <span class="knob-thumb"></span>
-                                </span>
-                                <span class="knob-toggle-label">{{ $value ? 'true' : 'false' }}</span>
-                            </button>
-                        @else
-                            <input
-                                class="knob-input"
-                                type="{{ $isNumber ? 'number' : 'text' }}"
-                                wire:model.live.debounce.150ms="knobValues.{{ $name }}"
-                                @if ($name === 'suffix')
-                                    placeholder="-"
-                                @endif
-                            />
-                        @endif
+            @foreach ($groupedKnobDefinitions as $groupLabel => $knobs)
+                <section class="knob-section" wire:key="knob-group-{{ $groupLabel }}">
+                    <div class="knob-section-head">
+                        <h3 class="knob-section-title">{{ $groupLabel }}</h3>
                     </div>
-                @endforeach
-            </div>
+
+                    <div class="knobs-grid">
+                        @foreach ($knobs as $knob)
+                            @php
+                                $name = $knob->getName();
+                                $value = $knobValues[$name] ?? $knob->getDefault();
+                                $isBoolean = $knob->getType() === $booleanType;
+                                $isNumber = $knob->getType() === $numberType;
+                                $isSelect = $knob->getType() === $selectType;
+                            @endphp
+
+                            <div class="knob-field" wire:key="knob-{{ $name }}">
+                                <div class="knob-label">
+                                    <span>{{ $knob->getLabel() }}</span>
+
+                                    @if (filled($knob->getHelperText()))
+                                        <x-filament::icon-button
+                                            class="knob-help-btn"
+                                            color="gray"
+                                            icon="heroicon-o-question-mark-circle"
+                                            icon-size="sm"
+                                            :label="$knob->getHelperText()"
+                                            size="xs"
+                                            :tooltip="$knob->getHelperText()"
+                                        />
+                                    @endif
+                                </div>
+
+                                @if ($isBoolean)
+                                    <button type="button" class="knob-toggle" wire:click="toggleBooleanKnob('{{ $name }}')">
+                                        <span @class(['knob-track', 'on' => $value])>
+                                            <span class="knob-thumb"></span>
+                                        </span>
+                                        <span class="knob-toggle-label">{{ $value ? 'true' : 'false' }}</span>
+                                    </button>
+                                @elseif ($isSelect)
+                                    <select class="knob-select" wire:model.live="knobValues.{{ $name }}">
+                                        @foreach ($knob->getOptions() as $optionValue => $optionLabel)
+                                            <option value="{{ $optionValue }}">{{ $optionLabel }}</option>
+                                        @endforeach
+                                    </select>
+                                @else
+                                    <input
+                                        class="knob-input"
+                                        type="{{ $isNumber ? 'number' : 'text' }}"
+                                        wire:model.live.debounce.150ms="knobValues.{{ $name }}"
+                                        @if ($name === 'suffix')
+                                            placeholder="-"
+                                        @endif
+                                    />
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                </section>
+            @endforeach
         </section>
     @endif
 </div>

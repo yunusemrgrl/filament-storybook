@@ -27,13 +27,16 @@ class FormStoryPreview extends Component implements HasForms
         $this->slug = $slug;
         $this->preset = $preset;
 
-        if (! $this->getStory()) {
+        $story = $this->getStory();
+
+        if (! $story) {
             $this->errorMessage = "Story bulunamadi: {$slug}";
 
             return;
         }
 
-        $this->previewForm->fill([]);
+        $this->previewData = $story->getPresetPreviewData($preset);
+        $this->previewForm->fill($this->previewData);
     }
 
     public function previewForm(Schema $schema): Schema

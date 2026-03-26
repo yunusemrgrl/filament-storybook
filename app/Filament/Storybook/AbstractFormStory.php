@@ -126,6 +126,51 @@ abstract class AbstractFormStory extends AbstractStory
     }
 
     /**
+     * Gallery ve playground preview'unda gosterilecek ornek field state'leri.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public function presetPreviewData(): array
+    {
+        return [];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function getPresetPreviewData(string $preset): array
+    {
+        return $this->presetPreviewData()[$preset] ?? [];
+    }
+
+    /**
+     * @return array<string, array<int, string>>
+     */
+    public function presetVisibleKnobs(): array
+    {
+        return [];
+    }
+
+    /**
+     * @return KnobDefinition[]
+     */
+    public function getVisibleKnobs(string $preset): array
+    {
+        $visibleKnobNames = $this->presetVisibleKnobs();
+
+        if (! array_key_exists($preset, $visibleKnobNames)) {
+            return $this->knobs();
+        }
+
+        $allowedKnobs = array_flip($visibleKnobNames[$preset]);
+
+        return array_values(array_filter(
+            $this->knobs(),
+            fn (KnobDefinition $knob): bool => array_key_exists($knob->getName(), $allowedKnobs),
+        ));
+    }
+
+    /**
      * AbstractStory'nin variants() metodunu burada karşılıyoruz.
      * Knobs sisteminde "variant" yerine "preset" kavramı kullanılıyor.
      * Ama AbstractStory hâlâ variants() istiyor — preset isimlerini döndürüyoruz.

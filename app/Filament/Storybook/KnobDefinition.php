@@ -55,6 +55,9 @@ class KnobDefinition
     /** Açıklama metni (sağ panelde field altında gösterilir) */
     private ?string $helperText = null;
 
+    /** Sağ panelde hangi bölüm altında listeleneceği */
+    private string $group = 'General';
+
     // -------------------------------------------------------------------------
     // Constructor & factory
     // -------------------------------------------------------------------------
@@ -155,6 +158,13 @@ class KnobDefinition
         return $this;
     }
 
+    public function group(string $group): static
+    {
+        $this->group = $group;
+
+        return $this;
+    }
+
     // -------------------------------------------------------------------------
     // Getters (FormStoryRenderer tarafından okunur)
     // -------------------------------------------------------------------------
@@ -187,5 +197,10 @@ class KnobDefinition
     public function getHelperText(): ?string
     {
         return $this->helperText;
+    }
+
+    public function getGroup(): string
+    {
+        return $this->group;
     }
 }

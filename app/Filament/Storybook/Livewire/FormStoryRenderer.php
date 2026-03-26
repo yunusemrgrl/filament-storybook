@@ -5,13 +5,11 @@ namespace App\Filament\Storybook\Livewire;
 use App\Filament\Storybook\AbstractFormStory;
 use App\Filament\Storybook\KnobDefinition;
 use App\Filament\Storybook\StoryRegistry;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Toggle;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Schemas\Schema;
-use Livewire\Attributes\On;
+use Illuminate\Contracts\View\View;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 
 /**
@@ -74,6 +72,10 @@ class FormStoryRenderer extends Component implements HasForms
 
     public ?string $errorMessage = null;
 
+    public ?string $previewValidationState = null;
+
+    public ?string $previewValidationMessage = null;
+
     // -------------------------------------------------------------------------
     // Livewire lifecycle
     // -------------------------------------------------------------------------
@@ -91,21 +93,14 @@ class FormStoryRenderer extends Component implements HasForms
             return;
         }
 
-        // Knob'ları preset değerleriyle başlat
         $this->knobValues = $story->getPresetValues($preset);
-
-        // Preview formu boş başlar (kullanıcı dolduracak)
-        $this->previewForm->fill([]);
-
-        // Knobs formu mevcut knob değerleriyle başlar
-        $this->knobsForm->fill($this->knobValues);
+        $this->fillPreviewFromPreset($story, $preset);
     }
 
     /**
      * StoryPage'den preset değişince çağrılır.
      * Knob değerlerini preset'e göre günceller.
      */
-    #[On('load-preset')]
     public function loadPreset(string $preset): void
     {
         $story = $this->getStory();
@@ -116,12 +111,7 @@ class FormStoryRenderer extends Component implements HasForms
 
         $this->preset = $preset;
         $this->knobValues = $story->getPresetValues($preset);
-
-        // Knobs formunu yeni değerlerle yenile
-        $this->knobsForm->fill($this->knobValues);
-
-        // Preview formunu sıfırla
-        $this->previewForm->fill([]);
+        $this->fillPreviewFromPreset($story, $preset);
     }
 
     // -------------------------------------------------------------------------
@@ -154,66 +144,6 @@ class FormStoryRenderer extends Component implements HasForms
     }
 
     /**
-     * Sağ taraftaki knobs formu.
-     * story->knobs() listesini Filament field'larına dönüştürür.
-     *
-     * Bu form değişince updatedKnobValues() tetiklenir
-     * → previewForm reactive olarak güncellenir.
-     */
-    public function knobsForm(Schema $schema): Schema
-    {
-        $story = $this->getStory();
-
-        if (! $story) {
-            return $schema->components([]);
-        }
-
-        $fields = [];
-
-        foreach ($story->knobs() as $knob) {
-            $fields[] = $this->knobToField($knob);
-        }
-
-        return $schema
-            ->components($fields)
-            ->columns(1)
-            ->statePath('knobValues');
-    }
-
-    /**
-     * KnobDefinition'ı Filament form field'ına dönüştürür.
-     */
-    private function knobToField(KnobDefinition $knob): mixed
-    {
-        return match ($knob->getType()) {
-
-            KnobDefinition::TYPE_BOOLEAN => Toggle::make($knob->getName())
-                ->label($knob->getLabel())
-                ->helperText($knob->getHelperText())
-                ->inline(false)   // toggle'ı label'ın altına koy, yanına değil
-                ->live(),
-
-            KnobDefinition::TYPE_SELECT => Select::make($knob->getName())
-                ->label($knob->getLabel())
-                ->options($knob->getOptions())
-                ->helperText($knob->getHelperText())
-                ->live(),
-
-            KnobDefinition::TYPE_NUMBER => TextInput::make($knob->getName())
-                ->label($knob->getLabel())
-                ->numeric()
-                ->helperText($knob->getHelperText())
-                ->live(),
-
-            // TYPE_TEXT ve default
-            default => TextInput::make($knob->getName())
-                ->label($knob->getLabel())
-                ->helperText($knob->getHelperText())
-                ->live(onBlur: true), // text için her tuşta değil, focus çıkınca güncelle
-        };
-    }
-
-    /**
      * Livewire'ın InteractsWithForms trait'i normalde tek form bekler.
      * Birden fazla form kullanmak için getForms() override edilir.
      */
@@ -221,7 +151,6 @@ class FormStoryRenderer extends Component implements HasForms
     {
         return [
             'previewForm',
-            'knobsForm',
         ];
     }
 
@@ -236,12 +165,54 @@ class FormStoryRenderer extends Component implements HasForms
     {
         $story = $this->getStory();
 
-        return $story?->knobs() ?? [];
+        return $story?->getVisibleKnobs($this->preset) ?? [];
+    }
+
+    /**
+     * @return array<string, array<int, KnobDefinition>>
+     */
+    public function getGroupedKnobDefinitions(): array
+    {
+        $groupedKnobs = [];
+
+        foreach ($this->getKnobDefinitions() as $knob) {
+            $groupedKnobs[$knob->getGroup()][] = $knob;
+        }
+
+        return $groupedKnobs;
     }
 
     public function toggleBooleanKnob(string $name): void
     {
         $this->knobValues[$name] = ! (bool) ($this->knobValues[$name] ?? false);
+    }
+
+    public function validatePreview(): void
+    {
+        $this->previewValidationState = null;
+        $this->previewValidationMessage = null;
+
+        try {
+            $this->previewForm->getState();
+
+            $this->previewValidationState = 'success';
+            $this->previewValidationMessage = 'Preview, secili variant ve aktif knobs ile validation kontrolunden gecti.';
+        } catch (ValidationException) {
+            $this->previewValidationState = 'danger';
+            $this->previewValidationMessage = 'Validation hatasi var. Preview icindeki field mesajlarini kontrol edin.';
+        }
+    }
+
+    public function resetPreview(): void
+    {
+        $story = $this->getStory();
+
+        if (! $story) {
+            return;
+        }
+
+        $this->resetValidation();
+        $this->fillPreviewFromPreset($story, $this->preset);
     }
 
     private function getStory(): ?AbstractFormStory
@@ -251,14 +222,23 @@ class FormStoryRenderer extends Component implements HasForms
         return $story instanceof AbstractFormStory ? $story : null;
     }
 
+    private function fillPreviewFromPreset(AbstractFormStory $story, string $preset): void
+    {
+        $this->previewValidationState = null;
+        $this->previewValidationMessage = null;
+        $this->resetValidation();
+        $this->previewData = $story->getPresetPreviewData($preset);
+        $this->previewForm->fill($this->previewData);
+    }
+
     // -------------------------------------------------------------------------
     // View
     // -------------------------------------------------------------------------
 
-    public function render()
+    public function render(): View
     {
         return view('filament.storybook.livewire.form-story-renderer', [
-            'knobDefinitions' => $this->getKnobDefinitions(),
+            'groupedKnobDefinitions' => $this->getGroupedKnobDefinitions(),
         ]);
     }
 }
