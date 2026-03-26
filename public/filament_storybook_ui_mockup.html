@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Filament Storybook — UI Mockup</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; background: #f3f4f6; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+
+.app { display: flex; height: 640px; width: 100%; max-width: 1100px; border: 0.5px solid #e5e7eb; border-radius: 12px; overflow: hidden; background: #ffffff; box-shadow: 0 8px 32px rgba(0,0,0,0.08); }
+
+/* ── Sidebar ── */
+.sidebar { width: 220px; flex-shrink: 0; border-right: 0.5px solid #e5e7eb; background: #f9fafb; display: flex; flex-direction: column; overflow: hidden; }
+.sidebar-header { padding: 14px 16px 10px; border-bottom: 0.5px solid #e5e7eb; }
+.sidebar-brand { font-size: 13px; font-weight: 500; color: #111827; display: flex; align-items: center; gap: 8px; }
+.sidebar-brand-dot { width: 8px; height: 8px; border-radius: 50%; background: #7c3aed; }
+.sidebar-search { margin-top: 8px; background: #fff; border: 0.5px solid #e5e7eb; border-radius: 8px; padding: 5px 10px; font-size: 12px; color: #9ca3af; display: flex; align-items: center; gap: 6px; }
+
+.nav-group { margin-top: 4px; }
+.nav-group-label { padding: 8px 16px 4px; font-size: 10px; font-weight: 500; letter-spacing: 0.06em; color: #9ca3af; text-transform: uppercase; }
+.nav-item { padding: 5px 16px; font-size: 12px; color: #6b7280; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+.nav-item:hover { background: #fff; }
+.nav-item-icon { width: 13px; height: 13px; opacity: 0.5; flex-shrink: 0; }
+.nav-item.group-item { font-weight: 500; color: #111827; }
+
+.nav-child { padding: 4px 16px 4px 36px; font-size: 12px; color: #6b7280; display: flex; align-items: center; gap: 7px; cursor: pointer; }
+.nav-child:hover { background: #fff; }
+.nav-child.active { color: #7c3aed; background: rgba(237,233,254,0.4); }
+.nav-child-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+/* ── Main ── */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+/* Topbar */
+.topbar { padding: 10px 20px; border-bottom: 0.5px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #6b7280; }
+.breadcrumb-link { color: #7c3aed; cursor: pointer; }
+.breadcrumb-sep { opacity: 0.4; }
+.breadcrumb-current { color: #111827; font-weight: 500; }
+.topbar-actions { display: flex; align-items: center; gap: 6px; }
+.topbar-btn { padding: 4px 10px; font-size: 11px; border: 0.5px solid #e5e7eb; border-radius: 8px; background: #fff; color: #6b7280; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+.topbar-btn.active { background: #7c3aed; color: #fff; border-color: #7c3aed; }
+.topbar-btn svg { width: 11px; height: 11px; }
+.topbar-divider { width: 0.5px; height: 16px; background: #e5e7eb; margin: 0 2px; }
+
+/* Story header */
+.story-header { padding: 16px 20px 12px; border-bottom: 0.5px solid #e5e7eb; flex-shrink: 0; }
+.story-title { font-size: 20px; font-weight: 500; color: #111827; margin-bottom: 4px; }
+.story-desc { font-size: 12px; color: #6b7280; line-height: 1.5; }
+
+/* Variant bar */
+.variant-bar { padding: 10px 20px; border-bottom: 0.5px solid #e5e7eb; display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.variant-label { font-size: 10px; font-weight: 500; letter-spacing: 0.06em; color: #9ca3af; text-transform: uppercase; margin-right: 4px; }
+.variant-pill { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 500; border: 0.5px solid #e5e7eb; background: #fff; color: #6b7280; cursor: pointer; transition: all 0.15s; }
+.variant-pill:hover { border-color: #7c3aed; color: #7c3aed; }
+.variant-pill.active { background: #7c3aed; color: #fff; border-color: #7c3aed; }
+
+/* Canvas */
+.canvas-wrap { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.canvas-label { padding: 8px 20px 0; font-size: 10px; font-weight: 500; letter-spacing: 0.06em; color: #9ca3af; text-transform: uppercase; }
+.canvas-area { flex: 1; padding: 20px; overflow: auto; background: #f9fafb; }
+
+/* Preview card */
+.preview-card { background: #fff; border: 0.5px solid #e5e7eb; border-radius: 12px; padding: 24px; max-width: 480px; }
+.field-label { font-size: 12px; font-weight: 500; color: #111827; margin-bottom: 6px; }
+.field-prefix-wrap { position: relative; }
+.field-input { width: 100%; padding: 7px 10px; border: 0.5px solid #d1d5db; border-radius: 8px; font-size: 13px; background: #fff; color: #111827; font-family: inherit; }
+.field-input.with-prefix { padding-left: 76px; }
+.field-prefix { position: absolute; left: 0; top: 0; bottom: 0; padding: 0 10px; display: flex; align-items: center; font-size: 12px; color: #6b7280; border-right: 0.5px solid #e5e7eb; background: #f9fafb; border-radius: 8px 0 0 8px; }
+.field-helper { font-size: 11px; color: #9ca3af; margin-top: 5px; }
+
+/* Knobs drawer */
+.knobs-drawer { border-top: 0.5px solid #e5e7eb; background: #fff; flex-shrink: 0; }
+.knobs-header { padding: 8px 20px; display: flex; align-items: center; justify-content: space-between; background: #f9fafb; border-bottom: 0.5px solid #e5e7eb; }
+.knobs-header-left { display: flex; align-items: center; gap: 7px; }
+.knobs-icon { width: 13px; height: 13px; color: #7c3aed; }
+.knobs-title { font-size: 12px; font-weight: 500; color: #111827; }
+.knobs-subtitle { font-size: 11px; color: #9ca3af; }
+.knobs-close { width: 22px; height: 22px; border-radius: 6px; border: 0.5px solid #e5e7eb; background: none; color: #9ca3af; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; line-height: 1; }
+.knobs-close:hover { background: #f3f4f6; color: #111827; }
+
+.knobs-body { padding: 12px 20px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px 20px; }
+.knob-field { display: flex; flex-direction: column; gap: 4px; }
+.knob-label { font-size: 10px; color: #6b7280; font-weight: 500; letter-spacing: 0.02em; }
+.knob-input { padding: 5px 8px; border: 0.5px solid #e5e7eb; border-radius: 6px; font-size: 12px; background: #f9fafb; color: #111827; font-family: inherit; width: 100%; }
+.knob-toggle { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+.knob-track { width: 28px; height: 16px; border-radius: 8px; background: #d1d5db; position: relative; cursor: pointer; flex-shrink: 0; }
+.knob-track.on { background: #7c3aed; }
+.knob-thumb { width: 12px; height: 12px; border-radius: 50%; background: white; position: absolute; top: 2px; left: 2px; transition: left 0.15s; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+.knob-track.on .knob-thumb { left: 14px; }
+.knob-toggle-label { font-size: 11px; color: #9ca3af; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-brand">
+        <div class="sidebar-brand-dot"></div>
+        Filament Storybook
+      </div>
+      <div class="sidebar-search">
+        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="opacity:0.4"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/></svg>
+        Find components...
+      </div>
+    </div>
+    <div style="overflow-y:auto;flex:1;padding-bottom:12px;">
+      <div class="nav-group">
+        <div class="nav-group-label">Forms</div>
+        <div class="nav-item group-item">
+          <svg class="nav-item-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+          TextInput
+        </div>
+        <div>
+          <div class="nav-child"><div class="nav-child-dot"></div>Text</div>
+          <div class="nav-child"><div class="nav-child-dot"></div>Email</div>
+          <div class="nav-child active"><div class="nav-child-dot"></div>With Prefix</div>
+          <div class="nav-child"><div class="nav-child-dot"></div>Password</div>
+        </div>
+        <div class="nav-item group-item" style="margin-top:2px;">
+          <svg class="nav-item-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4"/></svg>
+          Select
+        </div>
+        <div class="nav-item group-item">
+          <svg class="nav-item-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          DatePicker
+        </div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-label">Tables</div>
+        <div class="nav-item group-item">
+          <svg class="nav-item-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 6h18M3 14h18M3 18h18"/></svg>
+          TextColumn
+        </div>
+        <div class="nav-item group-item">
+          <svg class="nav-item-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a2 2 0 014-4z"/></svg>
+          BadgeColumn
+        </div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-label">Widgets</div>
+        <div class="nav-item group-item">
+          <svg class="nav-item-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          StatsOverview
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <div class="breadcrumb">
+        <span class="breadcrumb-link">Forms</span>
+        <span class="breadcrumb-sep">/</span>
+        <span class="breadcrumb-link">TextInput</span>
+        <span class="breadcrumb-sep">/</span>
+        <span class="breadcrumb-current">With Prefix</span>
+      </div>
+      <div class="topbar-actions">
+        <button class="topbar-btn active">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          Bottom
+        </button>
+        <button class="topbar-btn">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          Right
+        </button>
+        <div class="topbar-divider"></div>
+        <button class="topbar-btn">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+          Hide Knobs
+        </button>
+      </div>
+    </div>
+
+    <!-- Story header -->
+    <div class="story-header">
+      <div class="story-title">TextInput</div>
+      <div class="story-desc">Tekli satır metin girişi. Variant seçerek farklı kullanım senaryolarını, Knobs ile prop'ları canlı olarak incele.</div>
+    </div>
+
+    <!-- Variant bar -->
+    <div class="variant-bar">
+      <span class="variant-label">Variants</span>
+      <div class="variant-pill">Text</div>
+      <div class="variant-pill">Email</div>
+      <div class="variant-pill active">With Prefix</div>
+      <div class="variant-pill">Password</div>
+      <div class="variant-pill">Numeric</div>
+    </div>
+
+    <!-- Canvas -->
+    <div class="canvas-wrap">
+      <div class="canvas-label">Canvas</div>
+      <div class="canvas-area">
+        <div class="preview-card">
+          <div class="field-label">Website <span style="color:#e24b4a;">*</span></div>
+          <div class="field-prefix-wrap">
+            <span class="field-prefix">https://</span>
+            <input class="field-input with-prefix" value="example.com" />
+          </div>
+          <div class="field-helper">Sitenizin tam adresini girin.</div>
+        </div>
+      </div>
+
+      <!-- Knobs drawer -->
+      <div class="knobs-drawer">
+        <div class="knobs-header">
+          <div class="knobs-header-left">
+            <svg class="knobs-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+            <span class="knobs-title">Knobs</span>
+            <span class="knobs-subtitle">— Değiştir, canvas anında güncellenir</span>
+          </div>
+          <button class="knobs-close">×</button>
+        </div>
+        <div class="knobs-body">
+          <div class="knob-field">
+            <div class="knob-label">label</div>
+            <input class="knob-input" value="Website" />
+          </div>
+          <div class="knob-field">
+            <div class="knob-label">placeholder</div>
+            <input class="knob-input" value="example.com" />
+          </div>
+          <div class="knob-field">
+            <div class="knob-label">prefix</div>
+            <input class="knob-input" value="https://" />
+          </div>
+          <div class="knob-field">
+            <div class="knob-label">helperText</div>
+            <input class="knob-input" value="Sitenizin tam adresini..." />
+          </div>
+          <div class="knob-field">
+            <div class="knob-label">required</div>
+            <div class="knob-toggle">
+              <div class="knob-track on"><div class="knob-thumb"></div></div>
+              <span class="knob-toggle-label">true</span>
+            </div>
+          </div>
+          <div class="knob-field">
+            <div class="knob-label">disabled</div>
+            <div class="knob-toggle">
+              <div class="knob-track"><div class="knob-thumb"></div></div>
+              <span class="knob-toggle-label">false</span>
+            </div>
+          </div>
+          <div class="knob-field">
+            <div class="knob-label">readonly</div>
+            <div class="knob-toggle">
+              <div class="knob-track"><div class="knob-thumb"></div></div>
+              <span class="knob-toggle-label">false</span>
+            </div>
+          </div>
+          <div class="knob-field">
+            <div class="knob-label">suffix</div>
+            <input class="knob-input" value="" placeholder="—" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>
