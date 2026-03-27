@@ -3,6 +3,8 @@
 namespace App\Filament\Storybook;
 
 use App\Filament\Storybook\Blocks\Contracts\BlockDataContract;
+use App\Filament\Storybook\Support\KnobSchemaCompiler;
+use Filament\Forms\Components\Builder\Block;
 
 abstract class AbstractBlockStory extends AbstractKnobStory
 {
@@ -18,6 +20,11 @@ abstract class AbstractBlockStory extends AbstractKnobStory
         return 1;
     }
 
+    public function supportsCmsBuilder(): bool
+    {
+        return true;
+    }
+
     /**
      * @param  array<string, mixed>  $knobs
      * @return array<string, mixed>
@@ -30,6 +37,31 @@ abstract class AbstractBlockStory extends AbstractKnobStory
     abstract public function resolveBlockData(array $payload): BlockDataContract;
 
     abstract public function getFrontendView(): string;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    public function makeBuilderData(array $payload): array
+    {
+        $variant = is_string($payload['variant'] ?? null) ? $payload['variant'] : 'default';
+
+        return $this->getPresetValues($variant);
+    }
+
+    public function getBuilderItemLabel(?array $state = null): string
+    {
+        return $this->title;
+    }
+
+    public function toBuilderBlock(KnobSchemaCompiler $compiler): Block
+    {
+        return Block::make($this->getBlockType())
+            ->label(fn (?array $state): string => $this->getBuilderItemLabel($state))
+            ->icon($this->icon)
+            ->schema($compiler->compile($this->knobs(), testIdPrefix: 'builder-field'))
+            ->columns(1);
+    }
 
     public function getPreviewView(): string
     {

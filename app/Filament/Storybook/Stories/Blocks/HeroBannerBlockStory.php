@@ -18,7 +18,7 @@ class HeroBannerBlockStory extends AbstractBlockStory
 
     public string $icon = 'heroicon-o-photo';
 
-    public string $description = 'Landing page ve vitrin ekranlarinin ust bandinda kullanilan, headline, supporting copy ve CTA tasiyan ana karsilama blogu.';
+    public string $description = 'Landing page ust bandinda metin, CTA ve tek bir editorial gorseli birlikte tasiyan ana karsilama blogu.';
 
     public function knobs(): array
     {
@@ -42,6 +42,23 @@ class HeroBannerBlockStory extends AbstractBlockStory
                 defaultText: 'Kesfet',
                 defaultUrl: '/products',
             ),
+            KnobDefinition::make('imagePath')
+                ->label('Hero image')
+                ->file()
+                ->disk('public')
+                ->directory('page-blocks/hero-banners')
+                ->image()
+                ->default(null)
+                ->group('Media')
+                ->page()
+                ->helperText('Public disk uzerinde saklanan tek gorsel.'),
+            KnobDefinition::make('imageAlt')
+                ->label('Image alt')
+                ->text()
+                ->default('Hero visual')
+                ->group('Media')
+                ->page()
+                ->helperText('Erisilebilirlik ve SEO icin alternatif metin.'),
             ...TypographyKnobs::alignment(),
             ...LayoutKnobs::spacing(),
         ];
@@ -52,21 +69,28 @@ class HeroBannerBlockStory extends AbstractBlockStory
         return 'hero-banner';
     }
 
+    public function supportsCmsBuilder(): bool
+    {
+        return false;
+    }
+
     /**
      * @param  array<string, mixed>  $knobs
      * @return array<string, mixed>
      */
     public function makeBlockPayload(array $knobs, string $preset): array
     {
+        $headline = $this->normalizeText(
+            $knobs['headline'] ?? null,
+            'Struktura ile sinirlari kaldirin',
+        );
+
         return [
             'type' => $this->getBlockType(),
             'variant' => $preset,
             'version' => $this->getBlockVersion(),
             'content' => [
-                'headline' => $this->normalizeText(
-                    $knobs['headline'] ?? null,
-                    'Struktura ile sinirlari kaldirin',
-                ),
+                'headline' => $headline,
                 'subheadline' => $this->normalizeText(
                     $knobs['subheadline'] ?? null,
                     'Modern, esnek ve moduler icerik operasyonlari icin hazir block sistemi.',
@@ -101,6 +125,13 @@ class HeroBannerBlockStory extends AbstractBlockStory
                     'lg',
                 ),
             ],
+            'media' => [
+                'imagePath' => $this->normalizePath($knobs['imagePath'] ?? null),
+                'imageAlt' => $this->normalizeText(
+                    $knobs['imageAlt'] ?? null,
+                    $headline,
+                ),
+            ],
         ];
     }
 
@@ -115,6 +146,40 @@ class HeroBannerBlockStory extends AbstractBlockStory
     public function getFrontendView(): string
     {
         return 'filament.storybook.blocks.hero-banner';
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    public function makeBuilderData(array $payload): array
+    {
+        return [
+            'headline' => $payload['content']['headline'] ?? 'Struktura ile sinirlari kaldirin',
+            'subheadline' => $payload['content']['subheadline'] ?? 'Modern, esnek ve moduler icerik operasyonlari icin hazir block sistemi.',
+            'primaryCtaText' => $payload['actions']['primary']['text'] ?? 'Kesfet',
+            'primaryCtaUrl' => $payload['actions']['primary']['url'] ?? '/products',
+            'imagePath' => is_string($payload['media']['imagePath'] ?? null)
+                ? [$payload['media']['imagePath']]
+                : [],
+            'imageAlt' => $payload['media']['imageAlt'] ?? ($payload['content']['headline'] ?? 'Hero visual'),
+            'textAlign' => $payload['design']['textAlign'] ?? 'center',
+            'paddingTop' => $payload['design']['paddingTop'] ?? 'lg',
+            'paddingBottom' => $payload['design']['paddingBottom'] ?? 'lg',
+        ];
+    }
+
+    public function getBuilderItemLabel(?array $state = null): string
+    {
+        $headline = $state['headline'] ?? null;
+
+        if (! is_string($headline)) {
+            return $this->title;
+        }
+
+        $headline = trim($headline);
+
+        return $headline !== '' ? $headline : $this->title;
     }
 
     public function presets(): array
@@ -159,6 +224,10 @@ class HeroBannerBlockStory extends AbstractBlockStory
             'url' => '/products',
         ],
     ],
+    'media' => [
+        'imagePath' => 'page-blocks/hero-banners/example.jpg',
+        'imageAlt' => 'Hero visual',
+    ],
     'design' => [
         'textAlign' => 'center',
         'paddingTop' => 'lg',
@@ -172,60 +241,20 @@ PHP;
     {
         return [
             [
-                'title' => 'Headline',
-                'description' => 'Hero blogunun ana vaadini tek bakista anlatir.',
-            ],
-            [
-                'title' => 'Supporting copy',
-                'description' => 'Headline altinda ikincil baglam kurar ve aksiyona gecmeden once ikna eder.',
+                'title' => 'Message stack',
+                'description' => 'Headline ve subheadline tek bir editorial vaadi toplar.',
             ],
             [
                 'title' => 'Primary CTA',
-                'description' => 'Kullaniciya tek ana yon belirler; ikincil aksiyonlar daha sonra eklenebilir.',
+                'description' => 'Kullaniciya tek bir ana yon verir.',
+            ],
+            [
+                'title' => 'Hero visual',
+                'description' => 'Tek bir image upload ile sayfanin tonunu belirler.',
             ],
             [
                 'title' => 'Spacing envelope',
-                'description' => 'Blok, sayfa akisi icinde ne kadar nefes alacagini layout tokenlari ile belirler.',
-            ],
-        ];
-    }
-
-    public function documentationSections(): array
-    {
-        return [
-            [
-                'title' => 'Typed block payload',
-                'description' => 'Editor state dogrudan Bladee gitmez. Once payload, sonra DTO, en son view data olusturulur.',
-                'code' => <<<'PHP'
-$payload = [
-    'type' => 'hero-banner',
-    'content' => [...],
-    'actions' => [...],
-    'design' => [...],
-];
-
-$resolved = app(BlockFactory::class)->make($payload);
-PHP,
-                'points' => [
-                    'Persist edilen veri knob state degil, normalize edilmis block payload olmalidir.',
-                    'DTO katmani versioning, defaults ve sanitization icin merkezi nokta olur.',
-                ],
-            ],
-            [
-                'title' => 'Content and design separation',
-                'description' => 'Headline gibi editor verileri ile alignment ve spacing gibi sunum tokenlari farkli sepetlerde tutulur.',
-                'points' => [
-                    'Icerik degiskenleri localisation ve editorial workflow ile daha uyumludur.',
-                    'Design tokenlari ise theme veya template degisiminde daha kolay migrate edilir.',
-                ],
-            ],
-            [
-                'title' => 'Shared preview and frontend view',
-                'description' => 'Storybook preview ile page builder runtime ayni Blade partiali kullanir. Fark sadece wrapper seviyesindedir.',
-                'points' => [
-                    'Mockup ile production markup farki azalir.',
-                    'Block CSS tek yerde tutuldugunda tasarim drift etmez.',
-                ],
+                'description' => 'Blok sayfa akisi icinde ne kadar nefes alacagini layout tokenlari ile belirler.',
             ],
         ];
     }
@@ -236,46 +265,22 @@ PHP,
             'default' => [
                 'title' => 'Default hero',
                 'description' => 'Merkez hizali, dengeli spacinge sahip genel kullanim kurgusu.',
-                'code' => <<<'PHP'
-$payload['design'] = [
-    'textAlign' => 'center',
-    'paddingTop' => 'lg',
-    'paddingBottom' => 'lg',
-];
-PHP,
                 'points' => [
                     'Landing page ve kampanya ust bandi icin guvenli baslangic varyanti.',
-                    'Headline ile CTA ayni odaga toplandigi icin conversion odaklidir.',
                 ],
             ],
             'centered_compact' => [
                 'title' => 'Centered compact',
-                'description' => 'Daha siki spacing ile liste ya da grid bloklarinin hemen ustunde kullanilacak kompakt hero.',
-                'code' => <<<'PHP'
-$payload['design'] = [
-    'textAlign' => 'center',
-    'paddingTop' => 'md',
-    'paddingBottom' => 'md',
-];
-PHP,
+                'description' => 'Grid veya FAQ blogunun hemen ustunde kullanilacak daha sik hero ritmi.',
                 'points' => [
-                    'Grid gibi yogun bloklarla daha iyi ritim kurar.',
-                    'Mobilde ilk fold icine daha rahat sigar.',
+                    'Mobilde fold icine daha rahat sigar.',
                 ],
             ],
             'left_aligned_large' => [
                 'title' => 'Left aligned large',
-                'description' => 'Editoryal veya premium vitrinlerde daha genis nefes alan, sola hizali hero.',
-                'code' => <<<'PHP'
-$payload['design'] = [
-    'textAlign' => 'left',
-    'paddingTop' => 'xl',
-    'paddingBottom' => 'xl',
-];
-PHP,
+                'description' => 'Editoryal veya premium landing page senaryolari icin sola hizali hero.',
                 'points' => [
-                    'Uzun copy ve hikaye anlatimi gereken sayfalarda daha dogal gorunur.',
-                    'Sola hizalama, editorial ve magazin benzeri layoutlarda daha premium his verir.',
+                    'Daha uzun copy ile daha dogal gorunur.',
                 ],
             ],
         ];
@@ -290,6 +295,24 @@ PHP,
         $value = trim($value);
 
         return $value !== '' ? $value : $fallback;
+    }
+
+    private function normalizePath(mixed $value): ?string
+    {
+        if (is_array($value)) {
+            $value = array_values(array_filter(
+                $value,
+                static fn (mixed $item): bool => is_string($item) && trim($item) !== '',
+            ))[0] ?? null;
+        }
+
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+
+        return $value !== '' ? $value : null;
     }
 
     /**

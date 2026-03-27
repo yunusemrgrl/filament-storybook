@@ -190,6 +190,13 @@ class StoryRegistry
             return false;
         }
 
+        $fileName = $reflection->getFileName();
+        $storiesPath = str_replace('\\', '/', static::getStoriesPath());
+
+        if (! is_string($fileName) || ! str_starts_with(str_replace('\\', '/', $fileName), $storiesPath)) {
+            return false;
+        }
+
         // AbstractStory'yi extend etmeli
         return $reflection->isSubclassOf(AbstractStory::class);
     }

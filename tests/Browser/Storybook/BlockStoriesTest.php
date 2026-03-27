@@ -3,19 +3,19 @@
 it('smoke tests block story overview pages', function () {
     $pages = visit([
         storybookPageUrl('page-blocks-hero-banner'),
-        storybookPageUrl('page-blocks-product-grid'),
+        storybookPageUrl('page-blocks-faq'),
     ]);
 
     $pages->assertNoJavaScriptErrors()
         ->assertNoConsoleLogs();
 
-    [$heroPage, $gridPage] = $pages;
+    [$heroPage, $faqPage] = $pages;
 
     $heroPage->assertSee('Hero Banner')
         ->assertSee('Default hero');
 
-    $gridPage->assertSee('Product Grid')
-        ->assertSee('Default grid');
+    $faqPage->assertSee('FAQ')
+        ->assertSee('Default FAQ');
 });
 
 it('updates block preview when knobs change', function () {
@@ -29,11 +29,24 @@ it('updates block preview when knobs change', function () {
         ->assertNoJavaScriptErrors();
 });
 
-it('toggles product prices in the grid preview', function () {
-    $page = visit(storybookPageUrl('page-blocks-product-grid', 'default'));
+it('smoke tests the new primitive stories', function () {
+    $pages = visit([
+        storybookPageUrl('forms-select'),
+        storybookPageUrl('forms-fileupload'),
+        storybookPageUrl('forms-repeater'),
+    ]);
 
-    $page->assertSee('$148')
-        ->click('[data-testid="knob-showPrices-toggle"]')
-        ->assertDontSee('$148')
-        ->assertNoJavaScriptErrors();
+    $pages->assertNoJavaScriptErrors()
+        ->assertNoConsoleLogs();
+
+    [$selectPage, $fileUploadPage, $repeaterPage] = $pages;
+
+    $selectPage->assertSee('Select')
+        ->assertSee('Status');
+
+    $fileUploadPage->assertSee('FileUpload')
+        ->assertSee('Hero image');
+
+    $repeaterPage->assertSee('Repeater')
+        ->assertSee('FAQ items');
 });

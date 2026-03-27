@@ -1321,3 +1321,18 @@ html.dark .sb-page .variant-preview-card .fi-input-wrp-label {
         grid-template-columns: 1fr;
     }
 }
+
+.knobs-form-shell .fi-section + .fi-section {
+    margin-top: 16px;
+}
+
+.knobs-form-shell .fi-section {
+    border: 1px solid var(--sb-border);
+    border-radius: 18px;
+    background: var(--sb-surface-soft);
+}
+
+.knobs-form-shell .fi-section-content-ctn,
+.knobs-form-shell .fi-section-header {
+    padding: 18px;
+}

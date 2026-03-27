@@ -21,6 +21,10 @@ it('normalizes hero banner block payloads', function () {
             'paddingTop' => 'mega',
             'paddingBottom' => 'sm',
         ],
+        'media' => [
+            'imagePath' => ' page-blocks/hero-banners/launch.png ',
+            'imageAlt' => '',
+        ],
     ]);
 
     expect($data->variant)->toBe('default')
@@ -32,6 +36,9 @@ it('normalizes hero banner block payloads', function () {
         ->and($data->textAlign)->toBe('center')
         ->and($data->paddingTop)->toBe('lg')
         ->and($data->paddingBottom)->toBe('sm')
+        ->and($data->imagePath)->toBe('page-blocks/hero-banners/launch.png')
+        ->and($data->imageAlt)->toBe('Launch faster')
+        ->and($data->hasImage())->toBeTrue()
         ->and($data->wrapperClasses())->toContain('is-pt-lg')
         ->and($data->contentClasses())->toBe('is-align-center');
 });
@@ -55,6 +62,10 @@ it('serializes hero banner block data back into a stable payload', function () {
             'paddingTop' => 'xl',
             'paddingBottom' => 'md',
         ],
+        'media' => [
+            'imagePath' => 'page-blocks/hero-banners/editorial-launch.jpg',
+            'imageAlt' => 'Editorial launch hero',
+        ],
     ]);
 
     expect($data->toArray())->toMatchArray([
@@ -75,6 +86,10 @@ it('serializes hero banner block data back into a stable payload', function () {
             'textAlign' => 'left',
             'paddingTop' => 'xl',
             'paddingBottom' => 'md',
+        ],
+        'media' => [
+            'imagePath' => 'page-blocks/hero-banners/editorial-launch.jpg',
+            'imageAlt' => 'Editorial launch hero',
         ],
     ]);
 });

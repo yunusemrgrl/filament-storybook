@@ -50,6 +50,11 @@ class ProductGridBlockStory extends AbstractBlockStory
         return 'product-grid';
     }
 
+    public function supportsCmsBuilder(): bool
+    {
+        return false;
+    }
+
     /**
      * @param  array<string, mixed>  $knobs
      * @return array<string, mixed>

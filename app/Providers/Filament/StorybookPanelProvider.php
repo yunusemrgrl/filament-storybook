@@ -70,6 +70,7 @@ class StorybookPanelProvider extends PanelProvider
             // Storybook'a özgü CSS — blade class'ları buradan geliyor
             ->assets([
                 Css::make('storybook-ui', asset('css/storybook.css')),
+                Css::make('storybook-blocks', asset('css/storybook-blocks.css')),
                 Js::make('storybook-theme', asset('js/storybook-theme.js')),
             ]);
 

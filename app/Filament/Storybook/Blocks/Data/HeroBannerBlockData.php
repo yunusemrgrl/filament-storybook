@@ -4,6 +4,7 @@ namespace App\Filament\Storybook\Blocks\Data;
 
 use App\Filament\Storybook\Blocks\Contracts\BlockDataContract;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 readonly class HeroBannerBlockData implements BlockDataContract
@@ -18,21 +19,24 @@ readonly class HeroBannerBlockData implements BlockDataContract
         public string $textAlign,
         public string $paddingTop,
         public string $paddingBottom,
-    ) {
-    }
+        public ?string $imagePath,
+        public string $imageAlt,
+    ) {}
 
     /**
      * @param  array<string, mixed>  $payload
      */
     public static function fromPayload(array $payload): static
     {
+        $headline = self::normalizeText(
+            Arr::get($payload, 'content.headline'),
+            'Struktura ile sinirlari kaldirin',
+        );
+
         return new static(
             variant: self::normalizeVariant($payload['variant'] ?? null),
             version: self::normalizeVersion($payload['version'] ?? null),
-            headline: self::normalizeText(
-                Arr::get($payload, 'content.headline'),
-                'Struktura ile sinirlari kaldirin',
-            ),
+            headline: $headline,
             subheadline: self::normalizeText(
                 Arr::get($payload, 'content.subheadline'),
                 'Modern, moduler ve hizli icerik operasyonlari icin page builder tabanli vitrin bloklari olusturun.',
@@ -58,6 +62,11 @@ readonly class HeroBannerBlockData implements BlockDataContract
                 Arr::get($payload, 'design.paddingBottom'),
                 ['none', 'sm', 'md', 'lg', 'xl'],
                 'lg',
+            ),
+            imagePath: self::normalizePath(Arr::get($payload, 'media.imagePath')),
+            imageAlt: self::normalizeText(
+                Arr::get($payload, 'media.imageAlt'),
+                $headline,
             ),
         );
     }
@@ -85,6 +94,10 @@ readonly class HeroBannerBlockData implements BlockDataContract
                 'textAlign' => $this->textAlign,
                 'paddingTop' => $this->paddingTop,
                 'paddingBottom' => $this->paddingBottom,
+            ],
+            'media' => [
+                'imagePath' => $this->imagePath,
+                'imageAlt' => $this->imageAlt,
             ],
         ];
     }
@@ -115,6 +128,20 @@ readonly class HeroBannerBlockData implements BlockDataContract
     public function hasPrimaryAction(): bool
     {
         return $this->primaryCtaText !== '';
+    }
+
+    public function hasImage(): bool
+    {
+        return $this->imagePath !== null;
+    }
+
+    public function imageUrl(): ?string
+    {
+        if ($this->imagePath === null) {
+            return null;
+        }
+
+        return Storage::disk('public')->url($this->imagePath);
     }
 
     private static function normalizeVariant(mixed $value): string
@@ -167,5 +194,16 @@ readonly class HeroBannerBlockData implements BlockDataContract
         }
 
         return '/'.ltrim($value, '/');
+    }
+
+    private static function normalizePath(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+
+        return $value !== '' ? $value : null;
     }
 }

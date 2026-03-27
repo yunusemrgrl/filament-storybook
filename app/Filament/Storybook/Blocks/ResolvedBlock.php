@@ -14,8 +14,7 @@ readonly class ResolvedBlock
         public AbstractBlockStory $story,
         public BlockDataContract $data,
         public array $payload,
-    ) {
-    }
+    ) {}
 
     public function previewView(): string
     {
@@ -36,5 +35,13 @@ readonly class ResolvedBlock
             $this->data->toViewData(),
             ['payload' => $this->payload],
         );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function frontendData(): array
+    {
+        return $this->previewData();
     }
 }

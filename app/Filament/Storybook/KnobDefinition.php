@@ -2,33 +2,8 @@
 
 namespace App\Filament\Storybook;
 
-/**
- * KnobDefinition
- *
- * Tek bir knob'u tanımlayan value object.
- * "Bu component'in şu prop'u, şu tip kontrol ile, şu default değerle düzenlenebilir"
- * bilgisini taşır.
- *
- * KULLANIM:
- * KnobDefinition::make('label')->text()->default('Name')
- * KnobDefinition::make('disabled')->boolean()->default(false)
- * KnobDefinition::make('color')->select(['primary','danger','warning'])->default('primary')
- * KnobDefinition::make('maxLength')->number()->default(255)
- *
- * NEDEN VALUE OBJECT?
- * Knob tanımı sadece veri taşır, davranışı yoktur.
- * FormStoryRenderer bu objeyi okuyarak sağ paneldeki
- * kontrol formunu otomatik oluşturur.
- */
 class KnobDefinition
 {
-    // Desteklenen knob tipleri
-    // Her tip sağ panelde farklı bir Filament field olarak render edilir:
-    // text    → TextInput
-    // boolean → Toggle
-    // select  → Select
-    // number  → TextInput (numeric)
-    // color   → ColorPicker (Aşama 3+)
     public const TYPE_TEXT = 'text';
 
     public const TYPE_BOOLEAN = 'boolean';
@@ -37,71 +12,58 @@ class KnobDefinition
 
     public const TYPE_NUMBER = 'number';
 
+    public const TYPE_FILE = 'file';
+
+    public const TYPE_REPEATER = 'repeater';
+
     public const LEVEL_PROTOTYPE = 'prototype';
 
     public const LEVEL_COMPONENT = 'component';
 
     public const LEVEL_PAGE = 'page';
 
-    /** build() metoduna geçilecek array key'i */
     private string $name;
 
-    /** Sağ panelde gösterilecek label */
     private string $label;
 
-    /** Knob tipi */
     private string $type = self::TYPE_TEXT;
 
-    /** Select tipinde seçenekler */
+    /**
+     * @var array<string, string>
+     */
     private array $options = [];
 
-    /** Başlangıç değeri */
     private mixed $default = null;
 
-    /** Açıklama metni (sağ panelde field altında gösterilir) */
     private ?string $helperText = null;
 
-    /** Sağ panelde hangi bölüm altında listeleneceği */
     private string $group = 'General';
 
-    /** Knob'un tasarım sistemi katmanındaki seviyesi */
     private string $level = self::LEVEL_PROTOTYPE;
 
     /**
-     * Bu knob'un hangi preset'lerde görünmesi gerektiği.
-     *
      * @var array<int, string>
      */
     private array $supports = [];
 
-    // -------------------------------------------------------------------------
-    // Constructor & factory
-    // -------------------------------------------------------------------------
+    private bool $required = false;
+
+    /**
+     * @var array<string, mixed>
+     */
+    private array $meta = [];
 
     private function __construct(string $name)
     {
         $this->name = $name;
-        // Label default olarak name'den üretilir: 'maxLength' → 'Max Length'
-        $this->label = ucwords(preg_replace('/([A-Z])/', ' $1', $name));
+        $this->label = ucwords((string) preg_replace('/([A-Z])/', ' $1', $name));
     }
 
-    /**
-     * Yeni bir KnobDefinition oluşturur.
-     * Her zaman bu static factory method ile başlanır.
-     */
     public static function make(string $name): static
     {
         return new static($name);
     }
 
-    // -------------------------------------------------------------------------
-    // Tip belirleyiciler (fluent API)
-    // -------------------------------------------------------------------------
-
-    /**
-     * Sağ panelde TextInput olarak render edilir.
-     * Label, placeholder, hint, helperText gibi string prop'lar için.
-     */
     public function text(): static
     {
         $this->type = self::TYPE_TEXT;
@@ -109,10 +71,6 @@ class KnobDefinition
         return $this;
     }
 
-    /**
-     * Sağ panelde Toggle olarak render edilir.
-     * disabled, required, readonly, revealable gibi boolean prop'lar için.
-     */
     public function boolean(): static
     {
         $this->type = self::TYPE_BOOLEAN;
@@ -121,16 +79,11 @@ class KnobDefinition
     }
 
     /**
-     * Sağ panelde Select olarak render edilir.
-     * Sabit seçenekler arasından bir değer seçmek için.
-     *
-     * @param  array  $options  ['value' => 'Label'] veya ['value1', 'value2']
+     * @param  array<int|string, string>  $options
      */
     public function select(array $options): static
     {
         $this->type = self::TYPE_SELECT;
-        // ['sm', 'md', 'lg'] → ['sm' => 'Sm', 'md' => 'Md', 'lg' => 'Lg']
-        // ['primary' => 'Primary'] formatındaysa olduğu gibi kullan
         $this->options = array_is_list($options)
             ? array_combine($options, array_map('ucfirst', $options))
             : $options;
@@ -138,10 +91,6 @@ class KnobDefinition
         return $this;
     }
 
-    /**
-     * Sağ panelde numeric TextInput olarak render edilir.
-     * minLength, maxLength, columns gibi integer prop'lar için.
-     */
     public function number(): static
     {
         $this->type = self::TYPE_NUMBER;
@@ -149,9 +98,23 @@ class KnobDefinition
         return $this;
     }
 
-    // -------------------------------------------------------------------------
-    // Diğer ayarlar (fluent API)
-    // -------------------------------------------------------------------------
+    public function file(): static
+    {
+        $this->type = self::TYPE_FILE;
+
+        return $this;
+    }
+
+    /**
+     * @param  array<int, KnobDefinition>  $itemSchema
+     */
+    public function repeater(array $itemSchema): static
+    {
+        $this->type = self::TYPE_REPEATER;
+        $this->meta['schema'] = $itemSchema;
+
+        return $this;
+    }
 
     public function label(string $label): static
     {
@@ -213,9 +176,61 @@ class KnobDefinition
         return $this;
     }
 
-    // -------------------------------------------------------------------------
-    // Getters (FormStoryRenderer tarafından okunur)
-    // -------------------------------------------------------------------------
+    public function required(bool $condition = true): static
+    {
+        $this->required = $condition;
+
+        return $this;
+    }
+
+    public function disk(string $disk): static
+    {
+        $this->meta['disk'] = $disk;
+
+        return $this;
+    }
+
+    public function directory(string $directory): static
+    {
+        $this->meta['directory'] = $directory;
+
+        return $this;
+    }
+
+    public function image(bool $condition = true): static
+    {
+        $this->meta['image'] = $condition;
+
+        return $this;
+    }
+
+    public function repeaterItemLabelField(string $field): static
+    {
+        $this->meta['itemLabelField'] = $field;
+
+        return $this;
+    }
+
+    public function repeaterAddActionLabel(string $label): static
+    {
+        $this->meta['addActionLabel'] = $label;
+
+        return $this;
+    }
+
+    public function minItems(int $count): static
+    {
+        $this->meta['minItems'] = $count;
+
+        return $this;
+    }
+
+    public function maxItems(int $count): static
+    {
+        $this->meta['maxItems'] = $count;
+
+        return $this;
+    }
 
     public function getName(): string
     {
@@ -232,6 +247,9 @@ class KnobDefinition
         return $this->type;
     }
 
+    /**
+     * @return array<string, string>
+     */
     public function getOptions(): array
     {
         return $this->options;
@@ -274,6 +292,11 @@ class KnobDefinition
         return $this->supports;
     }
 
+    public function isRequired(): bool
+    {
+        return $this->required;
+    }
+
     public function supportsPreset(string $preset): bool
     {
         if ($this->supports === []) {
@@ -281,5 +304,48 @@ class KnobDefinition
         }
 
         return in_array($preset, $this->supports, true);
+    }
+
+    /**
+     * @return array<int, KnobDefinition>
+     */
+    public function getRepeaterSchema(): array
+    {
+        return $this->meta['schema'] ?? [];
+    }
+
+    public function getFileDisk(): ?string
+    {
+        return $this->meta['disk'] ?? null;
+    }
+
+    public function getFileDirectory(): ?string
+    {
+        return $this->meta['directory'] ?? null;
+    }
+
+    public function isImageFile(): bool
+    {
+        return (bool) ($this->meta['image'] ?? false);
+    }
+
+    public function getRepeaterItemLabelField(): ?string
+    {
+        return $this->meta['itemLabelField'] ?? null;
+    }
+
+    public function getRepeaterAddActionLabel(): ?string
+    {
+        return $this->meta['addActionLabel'] ?? null;
+    }
+
+    public function getMinItems(): ?int
+    {
+        return $this->meta['minItems'] ?? null;
+    }
+
+    public function getMaxItems(): ?int
+    {
+        return $this->meta['maxItems'] ?? null;
     }
 }

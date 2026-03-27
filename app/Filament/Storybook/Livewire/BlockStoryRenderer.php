@@ -5,13 +5,20 @@ namespace App\Filament\Storybook\Livewire;
 use App\Filament\Storybook\AbstractBlockStory;
 use App\Filament\Storybook\Blocks\BlockFactory;
 use App\Filament\Storybook\Blocks\ResolvedBlock;
-use App\Filament\Storybook\KnobDefinition;
 use App\Filament\Storybook\StoryRegistry;
+use App\Filament\Storybook\Support\KnobSchemaCompiler;
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Forms\Contracts\HasForms;
+use Filament\Schemas\Schema;
 use Illuminate\Contracts\View\View;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
-class BlockStoryRenderer extends Component
+class BlockStoryRenderer extends Component implements HasForms
 {
+    use InteractsWithForms;
+    use WithFileUploads;
+
     public string $slug = '';
 
     public string $preset = 'default';
@@ -37,6 +44,7 @@ class BlockStoryRenderer extends Component
         }
 
         $this->knobValues = $story->getPresetValues($preset);
+        $this->knobsForm->fill($this->knobValues);
     }
 
     public function loadPreset(string $preset): void
@@ -49,46 +57,31 @@ class BlockStoryRenderer extends Component
 
         $this->preset = $preset;
         $this->knobValues = $story->getPresetValues($preset);
+        $this->knobsForm->fill($this->knobValues);
     }
 
-    public function toggleBooleanKnob(string $name): void
-    {
-        $this->knobValues[$name] = ! (bool) ($this->knobValues[$name] ?? false);
-    }
-
-    public function resetPreview(): void
+    public function knobsForm(Schema $schema): Schema
     {
         $story = $this->getStory();
 
         if (! $story) {
-            return;
+            return $schema->components([]);
         }
 
-        $this->knobValues = $story->getPresetValues($this->preset);
+        return $schema
+            ->components(app(KnobSchemaCompiler::class)->compile(
+                $story->getVisibleKnobs($this->preset),
+                live: true,
+                testIdPrefix: 'knob',
+            ))
+            ->statePath('knobValues');
     }
 
-    /**
-     * @return KnobDefinition[]
-     */
-    public function getKnobDefinitions(): array
+    protected function getForms(): array
     {
-        $story = $this->getStory();
-
-        return $story?->getVisibleKnobs($this->preset) ?? [];
-    }
-
-    /**
-     * @return array<string, array<int, KnobDefinition>>
-     */
-    public function getGroupedKnobDefinitions(): array
-    {
-        $groupedKnobs = [];
-
-        foreach ($this->getKnobDefinitions() as $knob) {
-            $groupedKnobs[$knob->getGroup()][] = $knob;
-        }
-
-        return $groupedKnobs;
+        return [
+            'knobsForm',
+        ];
     }
 
     public function getPreviewSchemaFingerprint(): string
@@ -101,10 +94,21 @@ class BlockStoryRenderer extends Component
         return md5($payload ?: $this->preset);
     }
 
+    public function resetPreview(): void
+    {
+        $story = $this->getStory();
+
+        if (! $story) {
+            return;
+        }
+
+        $this->knobValues = $story->getPresetValues($this->preset);
+        $this->knobsForm->fill($this->knobValues);
+    }
+
     public function render(): View
     {
         return view('filament.storybook.livewire.block-story-renderer', [
-            'groupedKnobDefinitions' => $this->getGroupedKnobDefinitions(),
             'resolvedBlock' => $this->getResolvedBlock(),
         ]);
     }
