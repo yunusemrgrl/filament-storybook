@@ -29,6 +29,7 @@ class TextInputStory extends AbstractFormStory
             KnobDefinition::make('required')->label('required')->boolean()->default(false)->group('State')->helperText('Alan icin required validation kuralini ekler.'),
             KnobDefinition::make('disabled')->label('disabled')->boolean()->default(false)->group('State')->helperText('Field etkilesimini ve submitte dehydrate olmasini kapatir.'),
             KnobDefinition::make('readOnly')->label('readOnly')->boolean()->default(false)->group('State')->helperText('Field focus alir, ancak kullanici degeri duzenleyemez.'),
+            KnobDefinition::make('revealable')->label('revealable')->boolean()->default(false)->group('State')->helperText('Sadece password fieldlarda sagdaki aksiyonla degeri gecici olarak gosterir.'),
             KnobDefinition::make('trim')->label('trim')->boolean()->default(false)->group('State')->helperText('Validation ve dehydration oncesi kenar bosluklarini temizler.'),
             KnobDefinition::make('autocomplete')->label('autocomplete')->select([
                 '' => 'Default',
@@ -81,7 +82,8 @@ class TextInputStory extends AbstractFormStory
     public function build(array $knobs): TextInput
     {
         $field = TextInput::make('preview')
-            ->label((string) ($knobs['label'] ?? 'Name'));
+            ->label((string) ($knobs['label'] ?? 'Name'))
+            ->live(onBlur: true);
 
         if (($knobs['email'] ?? false) === true) {
             $field->email();
@@ -161,8 +163,9 @@ class TextInputStory extends AbstractFormStory
 
         if (($knobs['copyable'] ?? false) === true) {
             $field->copyable(
-                copyMessage: $this->normalizeString($knobs['copyMessage'] ?? null),
-                copyMessageDuration: $this->normalizeInteger($knobs['copyMessageDuration'] ?? null),
+                $this->supportsClipboardCopy(),
+                $this->normalizeString($knobs['copyMessage'] ?? null),
+                $this->normalizeInteger($knobs['copyMessageDuration'] ?? null),
             );
         }
 
@@ -375,6 +378,7 @@ class TextInputStory extends AbstractFormStory
                 'helperText',
                 'required',
                 'disabled',
+                'revealable',
                 'autocomplete',
             ],
             'copyable_api_key' => [
@@ -496,7 +500,7 @@ PHP,
                 'points' => [
                     'email(), url(), tel(), numeric() ve integer() ilgili validation kurallarini otomatik ekler.',
                     'integer(), numeric() uzerine inputMode ve step varsayimlari da getirir.',
-                    'password() ancak gerekliyse revealable() ile acilmalidir; bu ayar recipe seviyesi karar olmali.',
+                    'revealable() password preset icinde knob olarak acilabilir; text veya email gibi variantlarda gizli kalmalidir.',
                 ],
             ],
             [
@@ -670,6 +674,7 @@ TextInput::make('password')
 PHP,
                 'points' => [
                     'revealable() ancak password() ile gecerlidir.',
+                    'Bu storyde revealable, yalnizca password variantinda gorunen baglamsal bir knob olarak sunulur.',
                     'Autocomplete secimi auth senaryosuna gore belirlenmelidir.',
                 ],
             ],
@@ -791,7 +796,7 @@ PHP,
         return (int) $value;
     }
 
-    private function normalizeNumeric(mixed $value): int | float | null
+    private function normalizeNumeric(mixed $value): int|float|null
     {
         if ($value === null || $value === '') {
             return null;
@@ -825,5 +830,13 @@ PHP,
         );
 
         return array_values(array_filter($options, static fn (string $option): bool => $option !== ''));
+    }
+
+    private function supportsClipboardCopy(): bool
+    {
+        $request = request();
+        $host = strtolower((string) $request->getHost());
+
+        return $request->isSecure() || in_array($host, ['localhost', '127.0.0.1', '::1'], true);
     }
 }

@@ -10,6 +10,7 @@ use Filament\Navigation\NavigationBuilder;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Assets\Css;
+use Filament\Support\Assets\Js;
 use Filament\Support\Colors\Color;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -69,6 +70,7 @@ class StorybookPanelProvider extends PanelProvider
             // Storybook'a özgü CSS — blade class'ları buradan geliyor
             ->assets([
                 Css::make('storybook-ui', asset('css/storybook.css')),
+                Js::make('storybook-theme', asset('js/storybook-theme.js')),
             ]);
 
     }

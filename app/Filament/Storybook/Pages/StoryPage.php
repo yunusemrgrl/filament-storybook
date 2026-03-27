@@ -14,11 +14,15 @@ class StoryPage extends Page
 
     protected static bool $shouldRegisterNavigation = false;
 
+    public string $theme = 'light';
+
     public string $activePreset = '';
 
     public function mount(): void
     {
         $story = $this->getCurrentStory();
+
+        $this->theme = $this->normalizeTheme(request()->query('theme', $this->theme));
 
         if (! $story) {
             return;
@@ -52,6 +56,11 @@ class StoryPage extends Page
         return "{$story->title} / {$presetLabel}";
     }
 
+    public function isDarkTheme(): bool
+    {
+        return $this->theme === 'dark';
+    }
+
     public function isOverview(): bool
     {
         return blank(request()->query('preset'));
@@ -80,6 +89,13 @@ class StoryPage extends Page
             'renderType' => $story ? $story->getRenderType() : 'generic',
             'slug' => request()->query('slug', ''),
             'isOverview' => $this->isOverview(),
+            'theme' => $this->theme,
+            'isDarkTheme' => $this->isDarkTheme(),
         ];
+    }
+
+    private function normalizeTheme(mixed $theme): string
+    {
+        return $theme === 'dark' ? 'dark' : 'light';
     }
 }

@@ -72,10 +72,6 @@ class FormStoryRenderer extends Component implements HasForms
 
     public ?string $errorMessage = null;
 
-    public ?string $previewValidationState = null;
-
-    public ?string $previewValidationMessage = null;
-
     // -------------------------------------------------------------------------
     // Livewire lifecycle
     // -------------------------------------------------------------------------
@@ -187,20 +183,32 @@ class FormStoryRenderer extends Component implements HasForms
         $this->knobValues[$name] = ! (bool) ($this->knobValues[$name] ?? false);
     }
 
-    public function validatePreview(): void
+    public function updatedPreviewData(mixed $value, string $key): void
     {
-        $this->previewValidationState = null;
-        $this->previewValidationMessage = null;
+        $statePath = "previewData.{$key}";
+
+        $this->resetValidation($statePath);
+        $this->validateOnly($statePath);
+    }
+
+    public function updatedKnobValues(): void
+    {
+        $this->resetValidation();
 
         try {
             $this->previewForm->getState();
-
-            $this->previewValidationState = 'success';
-            $this->previewValidationMessage = 'Preview, secili variant ve aktif knobs ile validation kontrolunden gecti.';
         } catch (ValidationException) {
-            $this->previewValidationState = 'danger';
-            $this->previewValidationMessage = 'Validation hatasi var. Preview icindeki field mesajlarini kontrol edin.';
         }
+    }
+
+    public function getPreviewSchemaFingerprint(): string
+    {
+        $payload = json_encode([
+            'preset' => $this->preset,
+            'knobs' => $this->knobValues,
+        ]);
+
+        return md5($payload ?: $this->preset);
     }
 
     public function resetPreview(): void
@@ -224,8 +232,6 @@ class FormStoryRenderer extends Component implements HasForms
 
     private function fillPreviewFromPreset(AbstractFormStory $story, string $preset): void
     {
-        $this->previewValidationState = null;
-        $this->previewValidationMessage = null;
         $this->resetValidation();
         $this->previewData = $story->getPresetPreviewData($preset);
         $this->previewForm->fill($this->previewData);
