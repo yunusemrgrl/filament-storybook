@@ -90,7 +90,7 @@
                             <p>{{ $story->getPresetDescription($presetKey) }}</p>
                         </div>
 
-                        <a href="{{ $presetUrl }}" wire:navigate class="docs-secondary-link" dusk="preset-link-{{ $presetKey }}">
+                        <a href="{{ $presetUrl }}" wire:navigate class="docs-secondary-link" data-testid="preset-link-{{ $presetKey }}">
                             Playground
                         </a>
                     </div>

@@ -49,7 +49,7 @@
                         $isSelect = $knob->getType() === $selectType;
                     @endphp
 
-                    <div class="knob-field" wire:key="knob-{{ $name }}" dusk="knob-{{ $name }}">
+                    <div class="knob-field" wire:key="knob-{{ $name }}" data-testid="knob-{{ $name }}">
                         <div class="knob-label">
                             <span>{{ $knob->getLabel() }}</span>
 
@@ -69,14 +69,14 @@
                         </div>
 
                         @if ($isBoolean)
-                            <button type="button" class="knob-toggle" wire:click="toggleBooleanKnob('{{ $name }}')" dusk="knob-{{ $name }}-toggle">
+                            <button type="button" class="knob-toggle" wire:click="toggleBooleanKnob('{{ $name }}')" data-testid="knob-{{ $name }}-toggle">
                                 <span @class(['knob-track', 'on' => $value])>
                                     <span class="knob-thumb"></span>
                                 </span>
                                 <span class="knob-toggle-label">{{ $value ? 'true' : 'false' }}</span>
                             </button>
                         @elseif ($isSelect)
-                            <select class="knob-select" wire:model.live="knobValues.{{ $name }}" dusk="knob-{{ $name }}-select">
+                            <select class="knob-select" wire:model.live="knobValues.{{ $name }}" data-testid="knob-{{ $name }}-select">
                                 @foreach ($knob->getOptions() as $optionValue => $optionLabel)
                                     <option value="{{ $optionValue }}">{{ $optionLabel }}</option>
                                 @endforeach
@@ -86,7 +86,7 @@
                                 class="knob-input"
                                 type="{{ $isNumber ? 'number' : 'text' }}"
                                 wire:model.live.debounce.150ms="knobValues.{{ $name }}"
-                                dusk="knob-{{ $name }}-input"
+                                data-testid="knob-{{ $name }}-input"
                                 @if ($name === 'suffix')
                                     placeholder="-"
                                 @endif

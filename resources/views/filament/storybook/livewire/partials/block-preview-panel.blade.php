@@ -17,7 +17,7 @@
     </div>
 
     <div class="playground-preview-frame">
-        <div class="preview-card preview-card-block" wire:key="block-preview-{{ $this->getPreviewSchemaFingerprint() }}" dusk="block-preview-frame">
+        <div class="preview-card preview-card-block" wire:key="block-preview-{{ $this->getPreviewSchemaFingerprint() }}" data-testid="block-preview-frame">
             @if ($resolvedBlock)
                 @include($resolvedBlock->previewView(), $resolvedBlock->previewData())
             @endif
