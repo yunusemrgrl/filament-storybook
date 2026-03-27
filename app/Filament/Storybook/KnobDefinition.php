@@ -37,6 +37,12 @@ class KnobDefinition
 
     public const TYPE_NUMBER = 'number';
 
+    public const LEVEL_PROTOTYPE = 'prototype';
+
+    public const LEVEL_COMPONENT = 'component';
+
+    public const LEVEL_PAGE = 'page';
+
     /** build() metoduna geçilecek array key'i */
     private string $name;
 
@@ -57,6 +63,16 @@ class KnobDefinition
 
     /** Sağ panelde hangi bölüm altında listeleneceği */
     private string $group = 'General';
+
+    /** Knob'un tasarım sistemi katmanındaki seviyesi */
+    private string $level = self::LEVEL_PROTOTYPE;
+
+    /**
+     * Bu knob'un hangi preset'lerde görünmesi gerektiği.
+     *
+     * @var array<int, string>
+     */
+    private array $supports = [];
 
     // -------------------------------------------------------------------------
     // Constructor & factory
@@ -165,6 +181,38 @@ class KnobDefinition
         return $this;
     }
 
+    public function level(string $level): static
+    {
+        $this->level = $level;
+
+        return $this;
+    }
+
+    public function prototype(): static
+    {
+        return $this->level(self::LEVEL_PROTOTYPE);
+    }
+
+    public function component(): static
+    {
+        return $this->level(self::LEVEL_COMPONENT);
+    }
+
+    public function page(): static
+    {
+        return $this->level(self::LEVEL_PAGE);
+    }
+
+    /**
+     * @param  array<int, string>  $presets
+     */
+    public function supports(array $presets): static
+    {
+        $this->supports = array_values(array_unique($presets));
+
+        return $this;
+    }
+
     // -------------------------------------------------------------------------
     // Getters (FormStoryRenderer tarafından okunur)
     // -------------------------------------------------------------------------
@@ -202,5 +250,36 @@ class KnobDefinition
     public function getGroup(): string
     {
         return $this->group;
+    }
+
+    public function getLevel(): string
+    {
+        return $this->level;
+    }
+
+    public function getLevelLabel(): string
+    {
+        return match ($this->level) {
+            self::LEVEL_COMPONENT => 'Component',
+            self::LEVEL_PAGE => 'Page',
+            default => 'Prototype',
+        };
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function getSupports(): array
+    {
+        return $this->supports;
+    }
+
+    public function supportsPreset(string $preset): bool
+    {
+        if ($this->supports === []) {
+            return true;
+        }
+
+        return in_array($preset, $this->supports, true);
     }
 }

@@ -156,16 +156,21 @@ abstract class AbstractFormStory extends AbstractStory
      */
     public function getVisibleKnobs(string $preset): array
     {
+        $knobs = array_values(array_filter(
+            $this->knobs(),
+            fn (KnobDefinition $knob): bool => $knob->supportsPreset($preset),
+        ));
+
         $visibleKnobNames = $this->presetVisibleKnobs();
 
         if (! array_key_exists($preset, $visibleKnobNames)) {
-            return $this->knobs();
+            return $knobs;
         }
 
         $allowedKnobs = array_flip($visibleKnobNames[$preset]);
 
         return array_values(array_filter(
-            $this->knobs(),
+            $knobs,
             fn (KnobDefinition $knob): bool => array_key_exists($knob->getName(), $allowedKnobs),
         ));
     }

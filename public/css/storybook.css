@@ -692,6 +692,19 @@ html.dark .sb-page {
     min-width: 0;
 }
 
+.knob-level-badge {
+    flex-shrink: 0;
+    border: 1px solid var(--sb-border);
+    border-radius: 999px;
+    background: var(--sb-surface-soft);
+    padding: 2px 8px;
+    color: var(--sb-text-subtle);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
 .knob-help-btn.fi-icon-btn,
 .knob-help-btn.fi-icon-btn.fi-size-xs {
     width: 18px;

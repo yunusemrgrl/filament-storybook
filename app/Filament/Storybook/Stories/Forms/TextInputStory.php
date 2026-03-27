@@ -29,8 +29,12 @@ class TextInputStory extends AbstractFormStory
             KnobDefinition::make('required')->label('required')->boolean()->default(false)->group('State')->helperText('Alan icin required validation kuralini ekler.'),
             KnobDefinition::make('disabled')->label('disabled')->boolean()->default(false)->group('State')->helperText('Field etkilesimini ve submitte dehydrate olmasini kapatir.'),
             KnobDefinition::make('readOnly')->label('readOnly')->boolean()->default(false)->group('State')->helperText('Field focus alir, ancak kullanici degeri duzenleyemez.'),
-            KnobDefinition::make('revealable')->label('revealable')->boolean()->default(false)->group('State')->helperText('Sadece password fieldlarda sagdaki aksiyonla degeri gecici olarak gosterir.'),
+            KnobDefinition::make('revealable')->label('revealable')->boolean()->default(false)->group('State')->component()->supports(['password'])->helperText('Sadece password fieldlarda sagdaki aksiyonla degeri gecici olarak gosterir.'),
             KnobDefinition::make('trim')->label('trim')->boolean()->default(false)->group('State')->helperText('Validation ve dehydration oncesi kenar bosluklarini temizler.'),
+            KnobDefinition::make('prefixIcon')->label('prefixIcon')->select($this->getAffixIconOptions())->default('')->group('Adornment')->prototype()->supports(['text', 'email', 'with_prefix', 'password', 'masked_date', 'phone', 'autocomplete_company'])->helperText('Curated Heroicon listesi. Primitive seviyede affix icon denemek icin kullanilir.'),
+            KnobDefinition::make('suffixIcon')->label('suffixIcon')->select($this->getAffixIconOptions())->default('')->group('Adornment')->prototype()->supports(['text', 'email', 'with_prefix', 'masked_date', 'masked_amount', 'phone', 'autocomplete_company'])->helperText('Sag affix iconu. Copyable veya revealable aksiyonlariyla cakismamasi icin secili presetlere gore acilir.'),
+            KnobDefinition::make('prefixIconColor')->label('prefixIconColor')->select($this->getAffixIconColorOptions())->default('')->group('Adornment')->prototype()->supports(['text', 'email', 'with_prefix', 'password', 'masked_date', 'phone', 'autocomplete_company'])->helperText('Icon icin design-token benzeri renk secimi.'),
+            KnobDefinition::make('suffixIconColor')->label('suffixIconColor')->select($this->getAffixIconColorOptions())->default('')->group('Adornment')->prototype()->supports(['text', 'email', 'with_prefix', 'masked_date', 'masked_amount', 'phone', 'autocomplete_company'])->helperText('Sag affix icon rengi.'),
             KnobDefinition::make('autocomplete')->label('autocomplete')->select([
                 '' => 'Default',
                 'off' => 'Off',
@@ -129,11 +133,11 @@ class TextInputStory extends AbstractFormStory
             $field->suffix($suffix);
         }
 
-        if ($prefixIcon = $knobs['prefixIcon'] ?? null) {
+        if ($prefixIcon = $this->normalizeHeroicon($knobs['prefixIcon'] ?? null)) {
             $field->prefixIcon($prefixIcon);
         }
 
-        if ($suffixIcon = $knobs['suffixIcon'] ?? null) {
+        if ($suffixIcon = $this->normalizeHeroicon($knobs['suffixIcon'] ?? null)) {
             $field->suffixIcon($suffixIcon);
         }
 
@@ -254,6 +258,7 @@ class TextInputStory extends AbstractFormStory
                 'email' => true,
                 'trim' => true,
                 'autocomplete' => 'email',
+                'prefixIcon' => Heroicon::Envelope->value,
             ],
             'with_prefix' => [
                 'label' => 'Website',
@@ -263,7 +268,8 @@ class TextInputStory extends AbstractFormStory
                 'required' => true,
                 'url' => true,
                 'autocomplete' => 'url',
-                'suffixIcon' => Heroicon::GlobeAlt,
+                'suffixIcon' => Heroicon::GlobeAlt->value,
+                'suffixIconColor' => 'primary',
             ],
             'password' => [
                 'label' => 'Password',
@@ -273,6 +279,7 @@ class TextInputStory extends AbstractFormStory
                 'password' => true,
                 'revealable' => true,
                 'autocomplete' => 'new-password',
+                'prefixIcon' => Heroicon::LockClosed->value,
             ],
             'copyable_api_key' => [
                 'label' => 'API key',
@@ -289,6 +296,7 @@ class TextInputStory extends AbstractFormStory
                 'maskPattern' => '99/99/9999',
                 'autocomplete' => 'off',
                 'inputMode' => 'numeric',
+                'prefixIcon' => Heroicon::CalendarDays->value,
             ],
             'masked_amount' => [
                 'label' => 'Amount',
@@ -306,6 +314,7 @@ class TextInputStory extends AbstractFormStory
                 'helperText' => 'tel() HTML type ve varsayilan phone regex kontrolunu birlikte getirir.',
                 'tel' => true,
                 'autocomplete' => 'tel',
+                'prefixIcon' => Heroicon::Phone->value,
             ],
             'autocomplete_company' => [
                 'label' => 'Manufacturer',
@@ -313,6 +322,7 @@ class TextInputStory extends AbstractFormStory
                 'helperText' => 'Datalist oneridir; kullaniciyi zorlamaz.',
                 'autocomplete' => 'organization',
                 'datalistOptions' => 'BMW, Ford, Mercedes-Benz, Porsche, Toyota, Volkswagen',
+                'prefixIcon' => Heroicon::BuildingOffice2->value,
             ],
             'readonly' => [
                 'label' => 'Order code',
@@ -352,6 +362,10 @@ class TextInputStory extends AbstractFormStory
             'text' => [
                 ...$contentKnobs,
                 ...$textStateKnobs,
+                'prefixIcon',
+                'suffixIcon',
+                'prefixIconColor',
+                'suffixIconColor',
                 'autocomplete',
                 'autocapitalize',
                 'minLength',
@@ -361,6 +375,10 @@ class TextInputStory extends AbstractFormStory
             'email' => [
                 ...$contentKnobs,
                 ...$textStateKnobs,
+                'prefixIcon',
+                'suffixIcon',
+                'prefixIconColor',
+                'suffixIconColor',
                 'autocomplete',
                 'minLength',
                 'maxLength',
@@ -370,6 +388,10 @@ class TextInputStory extends AbstractFormStory
                 ...$interactiveStateKnobs,
                 'prefix',
                 'suffix',
+                'prefixIcon',
+                'suffixIcon',
+                'prefixIconColor',
+                'suffixIconColor',
                 'autocomplete',
             ],
             'password' => [
@@ -379,6 +401,8 @@ class TextInputStory extends AbstractFormStory
                 'required',
                 'disabled',
                 'revealable',
+                'prefixIcon',
+                'prefixIconColor',
                 'autocomplete',
             ],
             'copyable_api_key' => [
@@ -390,6 +414,10 @@ class TextInputStory extends AbstractFormStory
             'masked_date' => [
                 ...$contentKnobs,
                 ...$interactiveStateKnobs,
+                'prefixIcon',
+                'suffixIcon',
+                'prefixIconColor',
+                'suffixIconColor',
                 'maskPattern',
                 'inputMode',
             ],
@@ -397,6 +425,8 @@ class TextInputStory extends AbstractFormStory
                 ...$contentKnobs,
                 ...$interactiveStateKnobs,
                 'suffix',
+                'suffixIcon',
+                'suffixIconColor',
                 'minValue',
                 'maxValue',
                 'step',
@@ -404,6 +434,10 @@ class TextInputStory extends AbstractFormStory
             'phone' => [
                 ...$contentKnobs,
                 ...$interactiveStateKnobs,
+                'prefixIcon',
+                'suffixIcon',
+                'prefixIconColor',
+                'suffixIconColor',
                 'autocomplete',
             ],
             'autocomplete_company' => [
@@ -411,6 +445,10 @@ class TextInputStory extends AbstractFormStory
                 'required',
                 'disabled',
                 'readOnly',
+                'prefixIcon',
+                'suffixIcon',
+                'prefixIconColor',
+                'suffixIconColor',
                 'autocomplete',
                 'autocapitalize',
                 'datalistOptions',
@@ -475,7 +513,7 @@ TextInput::make('amount')
 PHP,
                 'points' => [
                     'Variantler gercek urun recipe leridir: email, password, copyable API key, masked amount gibi.',
-                    'Knobs yalnizca guvenli scalar ayarlari acar: label, placeholder, required, minLength, copyMessage, static mask gibi.',
+                    'Knobs yalnizca guvenli scalar ayarlari acar: label, affix icon secimi, required, minLength, copyMessage, static mask gibi.',
                     'RawJs mask, regex veya custom rule builder gibi backend agirlikli kararlar docs olarak kalmali; serbest kullanici girdisine acilmamali.',
                 ],
             ],
@@ -539,7 +577,7 @@ PHP,
                 'points' => [
                     'Prefix ve suffix, kullanicinin yazmamasi gereken sabit parcayi ayirir.',
                     'copyable() knob olarak acilabilir; ancak SSL olmadiginda browser clipboard API calismaz.',
-                    'Icon secimi genellikle tasarim sistemi karari oldugu icin preset veya docs recipe seviyesinde tutulmalidir.',
+                    'Icon secimi serbest text yerine curated asset select ile acilmalidir; bu storyde primitive seviyede knob olarak sunulur.',
                 ],
             ],
             [
@@ -659,6 +697,7 @@ TextInput::make('website')
 PHP,
                 'points' => [
                     'Affixler yazilmamasi gereken sabit parcayi field disina tasir.',
+                    'Suffix icon varsayilan recipe kararidir, ancak playground tarafinda curated knob ile degistirilebilir.',
                     'URL benzeri alanlarda hata oranini dusurur.',
                 ],
             ],
@@ -815,6 +854,19 @@ PHP,
         return $numericValue;
     }
 
+    private function normalizeHeroicon(mixed $value): ?Heroicon
+    {
+        if ($value instanceof Heroicon) {
+            return $value;
+        }
+
+        if (! is_string($value) || $value === '') {
+            return null;
+        }
+
+        return Heroicon::tryFrom($value);
+    }
+
     /**
      * @return array<int, string>
      */
@@ -838,5 +890,39 @@ PHP,
         $host = strtolower((string) $request->getHost());
 
         return $request->isSecure() || in_array($host, ['localhost', '127.0.0.1', '::1'], true);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function getAffixIconOptions(): array
+    {
+        return [
+            '' => 'None',
+            Heroicon::GlobeAlt->value => 'Globe',
+            Heroicon::Envelope->value => 'Envelope',
+            Heroicon::Phone->value => 'Phone',
+            Heroicon::User->value => 'User',
+            Heroicon::LockClosed->value => 'Lock',
+            Heroicon::CalendarDays->value => 'Calendar',
+            Heroicon::BuildingOffice2->value => 'Office',
+            Heroicon::CheckCircle->value => 'Check',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function getAffixIconColorOptions(): array
+    {
+        return [
+            '' => 'Default',
+            'gray' => 'Gray',
+            'primary' => 'Primary',
+            'success' => 'Success',
+            'warning' => 'Warning',
+            'danger' => 'Danger',
+            'info' => 'Info',
+        ];
     }
 }

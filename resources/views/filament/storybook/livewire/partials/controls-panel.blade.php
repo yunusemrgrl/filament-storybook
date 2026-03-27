@@ -26,6 +26,11 @@
             <span class="playground-explainer-label">Knobs</span>
             <span>Bu kurgunun ustune eklenen gecici playground ayarlari.</span>
         </div>
+
+        <div class="playground-explainer-item">
+            <span class="playground-explainer-label">Levels</span>
+            <span>Prototype badge'i primitive davranisi, Component badge'i recipe baglamini anlatir.</span>
+        </div>
     </div>
 
     @foreach ($groupedKnobDefinitions as $groupLabel => $knobs)
@@ -47,6 +52,8 @@
                     <div class="knob-field" wire:key="knob-{{ $name }}">
                         <div class="knob-label">
                             <span>{{ $knob->getLabel() }}</span>
+
+                            <span class="knob-level-badge">{{ $knob->getLevelLabel() }}</span>
 
                             @if (filled($knob->getHelperText()))
                                 <x-filament::icon-button
