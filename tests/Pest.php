@@ -15,7 +15,7 @@ use Tests\TestCase;
 
 pest()->extend(TestCase::class)
  // ->use(Illuminate\Foundation\Testing\RefreshDatabase::class)
-    ->in('Feature');
+    ->in('Feature', 'Browser');
 
 /*
 |--------------------------------------------------------------------------
@@ -46,4 +46,14 @@ expect()->extend('toBeOne', function () {
 function something()
 {
     // ..
+}
+
+function storybookPageUrl(string $slug, ?string $preset = null): string
+{
+    $query = http_build_query(array_filter([
+        'slug' => $slug,
+        'preset' => $preset,
+    ]));
+
+    return "/storybook/story-page?{$query}";
 }

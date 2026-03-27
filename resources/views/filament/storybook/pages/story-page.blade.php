@@ -1,12 +1,16 @@
 @php
+    use App\Filament\Storybook\AbstractBlockStory;
     use App\Filament\Storybook\AbstractFormStory;
+    use App\Filament\Storybook\AbstractKnobStory;
 
     $storyRoute = 'filament.storybook.pages.story-page';
+    $isKnobStory = $story instanceof AbstractKnobStory;
     $isFormStory = $story instanceof AbstractFormStory;
+    $isBlockStory = $story instanceof AbstractBlockStory;
     $currentSlug = $story?->getSlug();
     $overviewUrl = $story ? route($storyRoute, ['slug' => $story->getSlug()]) : url('/storybook');
     $defaultPreset = $story?->getDefaultVariantKey();
-    $activePresetTitle = $isFormStory && filled($activePreset)
+    $activePresetTitle = $isKnobStory && filled($activePreset)
         ? $story->getPresetTitle($activePreset)
         : null;
 @endphp

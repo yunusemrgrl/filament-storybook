@@ -1,9 +1,9 @@
 <section class="docs-hero">
-    <p class="docs-kicker">{{ $story->group }} component</p>
+    <p class="docs-kicker">{{ $story->group }} story</p>
     <h1 class="docs-title">{{ $story->title }}</h1>
     <p class="docs-description">{{ $story->description }}</p>
 
-    @if ($isFormStory && filled($defaultPreset))
+    @if ($isKnobStory && filled($defaultPreset))
         <div class="docs-hero-actions">
             <a
                 href="{{ route($storyRoute, ['slug' => $story->getSlug(), 'preset' => $defaultPreset]) }}"
@@ -63,16 +63,16 @@
     @endif
 </div>
 
-@if ($isFormStory && $presets !== [])
+@if ($isKnobStory && $presets !== [])
     <section id="variants" class="docs-section">
         <div class="docs-section-head">
             <div>
                 <p class="docs-kicker">Variants</p>
-                <h2 class="docs-section-title">Component gallery</h2>
+                <h2 class="docs-section-title">Preset gallery</h2>
             </div>
 
             <p class="docs-section-copy">
-                Her kart, docs icindeki belirli bir kullanim senaryosunu gosterir. Kart acildiginda ayni preset icin playground ekranina gecersiniz.
+                Her kart, dokumandaki belirli kullanim senaryosunu gosterir. Kart acildiginda ayni preset icin playground ekranina gecersiniz.
             </p>
         </div>
 
@@ -90,16 +90,24 @@
                             <p>{{ $story->getPresetDescription($presetKey) }}</p>
                         </div>
 
-                        <a href="{{ $presetUrl }}" wire:navigate class="docs-secondary-link">
+                        <a href="{{ $presetUrl }}" wire:navigate class="docs-secondary-link" dusk="preset-link-{{ $presetKey }}">
                             Playground
                         </a>
                     </div>
 
-                    @livewire(
-                        'story-form-preview',
-                        ['slug' => $slug, 'preset' => $presetKey],
-                        key("story-preview-{$slug}-{$presetKey}")
-                    )
+                    @if ($isFormStory)
+                        @livewire(
+                            'story-form-preview',
+                            ['slug' => $slug, 'preset' => $presetKey],
+                            key("story-preview-{$slug}-{$presetKey}")
+                        )
+                    @elseif ($isBlockStory)
+                        @livewire(
+                            'story-block-preview',
+                            ['slug' => $slug, 'preset' => $presetKey],
+                            key("story-block-preview-{$slug}-{$presetKey}")
+                        )
+                    @endif
 
                     @if (filled($presetCode))
                         <pre class="docs-code-block is-compact"><code>{{ trim($presetCode) }}</code></pre>
@@ -119,7 +127,7 @@
             </div>
 
             <p class="docs-section-copy">
-                Filament dokumantasyonundaki ana basliklari, component library icindeki karar anlarina gore ozetliyoruz.
+                Bu story icindeki teknik karar anlarini ve runtime notlarini kisa kartlar halinde ozetliyoruz.
             </p>
         </div>
 

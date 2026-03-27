@@ -3,7 +3,8 @@
 namespace App\Filament\Storybook\Stories\Forms;
 
 use App\Filament\Storybook\AbstractFormStory;
-use App\Filament\Storybook\KnobDefinition;
+use App\Filament\Storybook\Knobs\CommonTextKnobs;
+use App\Filament\Storybook\Knobs\TextInputKnobs;
 use Filament\Forms\Components\TextInput;
 use Filament\Support\Icons\Heroicon;
 use Filament\Support\RawJs;
@@ -21,65 +22,18 @@ class TextInputStory extends AbstractFormStory
     public function knobs(): array
     {
         return [
-            KnobDefinition::make('label')->label('label')->text()->default('Name')->group('Content')->helperText('Field ustunde gorunen baslik.'),
-            KnobDefinition::make('placeholder')->label('placeholder')->text()->default('')->group('Content')->helperText('Alan bosken gorunen ipucu metni.'),
-            KnobDefinition::make('helperText')->label('helperText')->text()->default('')->group('Content')->helperText('Field altinda gorunen sabit aciklama.'),
-            KnobDefinition::make('prefix')->label('prefix')->text()->default('')->group('Content')->helperText('Input soluna eklenen sabit metin.'),
-            KnobDefinition::make('suffix')->label('suffix')->text()->default('')->group('Content')->helperText('Input sagina eklenen sabit metin.'),
-            KnobDefinition::make('required')->label('required')->boolean()->default(false)->group('State')->helperText('Alan icin required validation kuralini ekler.'),
-            KnobDefinition::make('disabled')->label('disabled')->boolean()->default(false)->group('State')->helperText('Field etkilesimini ve submitte dehydrate olmasini kapatir.'),
-            KnobDefinition::make('readOnly')->label('readOnly')->boolean()->default(false)->group('State')->helperText('Field focus alir, ancak kullanici degeri duzenleyemez.'),
-            KnobDefinition::make('revealable')->label('revealable')->boolean()->default(false)->group('State')->component()->supports(['password'])->helperText('Sadece password fieldlarda sagdaki aksiyonla degeri gecici olarak gosterir.'),
-            KnobDefinition::make('trim')->label('trim')->boolean()->default(false)->group('State')->helperText('Validation ve dehydration oncesi kenar bosluklarini temizler.'),
-            KnobDefinition::make('prefixIcon')->label('prefixIcon')->select($this->getAffixIconOptions())->default('')->group('Adornment')->prototype()->supports(['text', 'email', 'with_prefix', 'password', 'masked_date', 'phone', 'autocomplete_company'])->helperText('Curated Heroicon listesi. Primitive seviyede affix icon denemek icin kullanilir.'),
-            KnobDefinition::make('suffixIcon')->label('suffixIcon')->select($this->getAffixIconOptions())->default('')->group('Adornment')->prototype()->supports(['text', 'email', 'with_prefix', 'masked_date', 'masked_amount', 'phone', 'autocomplete_company'])->helperText('Sag affix iconu. Copyable veya revealable aksiyonlariyla cakismamasi icin secili presetlere gore acilir.'),
-            KnobDefinition::make('prefixIconColor')->label('prefixIconColor')->select($this->getAffixIconColorOptions())->default('')->group('Adornment')->prototype()->supports(['text', 'email', 'with_prefix', 'password', 'masked_date', 'phone', 'autocomplete_company'])->helperText('Icon icin design-token benzeri renk secimi.'),
-            KnobDefinition::make('suffixIconColor')->label('suffixIconColor')->select($this->getAffixIconColorOptions())->default('')->group('Adornment')->prototype()->supports(['text', 'email', 'with_prefix', 'masked_date', 'masked_amount', 'phone', 'autocomplete_company'])->helperText('Sag affix icon rengi.'),
-            KnobDefinition::make('autocomplete')->label('autocomplete')->select([
-                '' => 'Default',
-                'off' => 'Off',
-                'name' => 'Name',
-                'email' => 'Email',
-                'username' => 'Username',
-                'url' => 'URL',
-                'tel' => 'Telephone',
-                'organization' => 'Organization',
-                'new-password' => 'New Password',
-                'one-time-code' => 'One Time Code',
-            ])->default('')->group('Browser')->helperText('Tarayicinin autocomplete davranisini belirler.'),
-            KnobDefinition::make('autocapitalize')->label('autocapitalize')->select([
-                '' => 'Default',
-                'off' => 'Off',
-                'sentences' => 'Sentences',
-                'words' => 'Words',
-                'characters' => 'Characters',
-            ])->default('')->group('Browser')->helperText('Mobil klavyelerde otomatik buyuk harf davranisini degistirir.'),
-            KnobDefinition::make('inputMode')->label('inputMode')->select([
-                '' => 'Default',
-                'text' => 'Text',
-                'email' => 'Email',
-                'url' => 'URL',
-                'tel' => 'Telephone',
-                'numeric' => 'Numeric',
-                'decimal' => 'Decimal',
-                'search' => 'Search',
-            ])->default('')->group('Browser')->helperText('Mobil klavyeye hangi tipte giris beklendigini anlatir.'),
-            KnobDefinition::make('datalistOptions')->label('datalist')->text()->default('')->group('Browser')->helperText('Virgulle ayrilmis oneriler. Kullanici yine farkli deger girebilir.'),
-            KnobDefinition::make('minLength')->label('minLength')->number()->default(null)->group('Validation')->helperText('String uzunlugu icin alt sinir.'),
-            KnobDefinition::make('maxLength')->label('maxLength')->number()->default(null)->group('Validation')->helperText('String uzunlugu icin ust sinir.'),
-            KnobDefinition::make('exactLength')->label('length')->number()->default(null)->group('Validation')->helperText('Tam uzunluk eslesmesi gerekiyorsa kullanilir.'),
-            KnobDefinition::make('minValue')->label('minValue')->number()->default(null)->group('Validation')->helperText('Numeric inputlar icin minimum deger.'),
-            KnobDefinition::make('maxValue')->label('maxValue')->number()->default(null)->group('Validation')->helperText('Numeric inputlar icin maksimum deger.'),
-            KnobDefinition::make('step')->label('step')->select([
-                '' => 'Default',
-                '1' => '1',
-                '0.01' => '0.01',
-                'any' => 'Any',
-            ])->default('')->group('Validation')->helperText('HTML step attr ile klavye/spinner davranisini etkiler.'),
-            KnobDefinition::make('copyable')->label('copyable')->boolean()->default(false)->group('Utilities')->helperText('Suffix tarafina kopyalama aksiyonu ekler. HTTPS gerektirir.'),
-            KnobDefinition::make('copyMessage')->label('copyMessage')->text()->default('Copied!')->group('Utilities')->helperText('Kopyalama sonrasi gosterilen toast metni.'),
-            KnobDefinition::make('copyMessageDuration')->label('copyDuration')->number()->default(1500)->group('Utilities')->helperText('Kopyalama toast suresi, milisaniye cinsinden.'),
-            KnobDefinition::make('maskPattern')->label('mask')->text()->default('')->group('Utilities')->helperText('Static Alpine mask. Ornek: 99/99/9999'),
+            ...CommonTextKnobs::content(defaultLabel: 'Name'),
+            ...TextInputKnobs::affixes(),
+            ...CommonTextKnobs::state(),
+            TextInputKnobs::revealable(),
+            ...TextInputKnobs::adornments(
+                prefixSupports: ['text', 'email', 'with_prefix', 'password', 'masked_date', 'phone', 'autocomplete_company'],
+                suffixSupports: ['text', 'email', 'with_prefix', 'masked_date', 'masked_amount', 'phone', 'autocomplete_company'],
+            ),
+            ...CommonTextKnobs::browser(),
+            ...CommonTextKnobs::stringValidation(),
+            ...TextInputKnobs::numericValidation(),
+            ...TextInputKnobs::utilities(),
         ];
     }
 
@@ -890,39 +844,5 @@ PHP,
         $host = strtolower((string) $request->getHost());
 
         return $request->isSecure() || in_array($host, ['localhost', '127.0.0.1', '::1'], true);
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    private function getAffixIconOptions(): array
-    {
-        return [
-            '' => 'None',
-            Heroicon::GlobeAlt->value => 'Globe',
-            Heroicon::Envelope->value => 'Envelope',
-            Heroicon::Phone->value => 'Phone',
-            Heroicon::User->value => 'User',
-            Heroicon::LockClosed->value => 'Lock',
-            Heroicon::CalendarDays->value => 'Calendar',
-            Heroicon::BuildingOffice2->value => 'Office',
-            Heroicon::CheckCircle->value => 'Check',
-        ];
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    private function getAffixIconColorOptions(): array
-    {
-        return [
-            '' => 'Default',
-            'gray' => 'Gray',
-            'primary' => 'Primary',
-            'success' => 'Success',
-            'warning' => 'Warning',
-            'danger' => 'Danger',
-            'info' => 'Info',
-        ];
     }
 }

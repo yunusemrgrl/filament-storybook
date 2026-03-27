@@ -1,5 +1,5 @@
 @php
-    use App\Filament\Storybook\AbstractFormStory;
+    use App\Filament\Storybook\AbstractKnobStory;
 @endphp
 
 <aside class="docs-sidebar">
@@ -56,7 +56,7 @@
                     @php
                         $isActiveStory = $currentSlug === $navStory->getSlug();
                         $navOverviewUrl = route($storyRoute, ['slug' => $navStory->getSlug()]);
-                        $navIsFormStory = $navStory instanceof AbstractFormStory;
+                        $navIsKnobStory = $navStory instanceof AbstractKnobStory;
                     @endphp
 
                     <a
@@ -69,14 +69,14 @@
                     >
                         <span>{{ $navStory->title }}</span>
 
-                        @if ($navIsFormStory)
+                        @if ($navIsKnobStory)
                             <span class="docs-nav-pill">
                                 {{ count($navStory->variants()) }} variants
                             </span>
                         @endif
                     </a>
 
-                    @if ($isActiveStory && $navIsFormStory)
+                    @if ($isActiveStory && $navIsKnobStory)
                         <div class="docs-nav-children">
                             @foreach ($navStory->variants() as $presetKey)
                                 <a

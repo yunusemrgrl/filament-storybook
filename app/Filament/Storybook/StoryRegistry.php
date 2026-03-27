@@ -2,6 +2,7 @@
 
 namespace App\Filament\Storybook;
 
+use App\Filament\Storybook\Blocks\BlockRegistry;
 use Illuminate\Support\Facades\File;
 use ReflectionClass;
 
@@ -211,5 +212,6 @@ class StoryRegistry
     public static function flush(): void
     {
         static::$stories = null;
+        BlockRegistry::flush();
     }
 }

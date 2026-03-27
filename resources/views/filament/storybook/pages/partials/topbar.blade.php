@@ -11,7 +11,7 @@
     </div>
 
     <div class="docs-topbar-actions">
-        @if ($isFormStory && $isOverview && filled($defaultPreset))
+        @if ($isKnobStory && $isOverview && filled($defaultPreset))
             <a
                 href="{{ route($storyRoute, ['slug' => $story->getSlug(), 'preset' => $defaultPreset]) }}"
                 wire:navigate

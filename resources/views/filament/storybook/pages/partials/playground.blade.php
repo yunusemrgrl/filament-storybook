@@ -2,11 +2,11 @@
     <p class="docs-kicker">Playground</p>
     <h1 class="docs-title">{{ $activePresetTitle }}</h1>
     <p class="docs-description">
-        {{ $isFormStory ? $story->getPresetDescription($activePreset) : $story->description }}
+        {{ $isKnobStory ? $story->getPresetDescription($activePreset) : $story->description }}
     </p>
 </section>
 
-@if ($isFormStory)
+@if ($isKnobStory)
     <nav class="docs-variant-tabs">
         @foreach ($presets as $presetKey)
             <a
@@ -75,6 +75,12 @@
         'story-form-renderer',
         ['slug' => $slug, 'preset' => $activePreset],
         key("story-renderer-{$slug}-{$activePreset}")
+    )
+@elseif ($renderType === 'block')
+    @livewire(
+        'story-block-renderer',
+        ['slug' => $slug, 'preset' => $activePreset],
+        key("story-block-renderer-{$slug}-{$activePreset}")
     )
 @else
     <section class="docs-card">
