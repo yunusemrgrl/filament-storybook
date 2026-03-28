@@ -59,7 +59,7 @@ abstract class AbstractBlockStory extends AbstractKnobStory
         return Block::make($this->getBlockType())
             ->label(fn (?array $state): string => $this->getBuilderItemLabel($state))
             ->icon($this->icon)
-            ->schema($compiler->compile($this->knobs(), testIdPrefix: 'builder-field'))
+            ->schema($compiler->compile($this->knobs(), live: true, testIdPrefix: 'builder-field'))
             ->columns(1);
     }
 

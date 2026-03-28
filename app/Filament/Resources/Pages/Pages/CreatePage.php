@@ -3,11 +3,14 @@
 namespace App\Filament\Resources\Pages\Pages;
 
 use App\Filament\Resources\Pages\PageResource;
+use App\Filament\Resources\Pages\Pages\Concerns\InteractsWithPageBuilderPreview;
 use App\Filament\Storybook\Blocks\BuilderStateMapper;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreatePage extends CreateRecord
 {
+    use InteractsWithPageBuilderPreview;
+
     protected static string $resource = PageResource::class;
 
     /**

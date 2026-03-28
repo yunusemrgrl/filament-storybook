@@ -20,15 +20,18 @@ class PageForm
                 Section::make('Page meta')
                     ->schema([
                         TextInput::make('title')
+                            ->live(onBlur: true)
                             ->required()
                             ->maxLength(255)
                             ->extraInputAttributes(['data-testid' => 'page-title-input']),
                         TextInput::make('slug')
+                            ->live(onBlur: true)
                             ->required()
                             ->maxLength(255)
                             ->unique(ignoreRecord: true)
                             ->extraInputAttributes(['data-testid' => 'page-slug-input']),
                         Select::make('status')
+                            ->live()
                             ->options(PageStatus::options())
                             ->default(PageStatus::Draft->value)
                             ->required()

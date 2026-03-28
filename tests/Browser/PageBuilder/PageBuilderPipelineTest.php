@@ -29,6 +29,8 @@ it('loads database-defined components into the admin page builder with default v
     $page = visit('/admin/pages/create')
         ->wait(1)
         ->assertSee('Create Page')
+        ->assertPresent('@page-preview-panel')
+        ->assertPresent('@page-preview-frame')
         ->press('Add block')
         ->click('Hero Banner Component')
         ->assertValue('@builder-field-headline-input', 'Launch your next campaign faster')

@@ -28,8 +28,8 @@ it('creates an admin page and persists normalized blocks', function () {
     ]);
 
     $hero = ComponentDefinition::factory()->heroBanner()->create([
-        'name' => 'Hero Banner Component',
-        'handle' => 'hero_banner_component',
+        'name' => 'Hero Banner Preview Component',
+        'handle' => 'hero_banner_preview_component',
     ]);
 
     $faq = ComponentDefinition::factory()->faq()->create([
@@ -107,8 +107,8 @@ it('hydrates persisted blocks back into the admin form and saves edits', functio
     ]);
 
     $hero = ComponentDefinition::factory()->heroBanner()->create([
-        'name' => 'Hero Banner Component',
-        'handle' => 'hero_banner_component',
+        'name' => 'Hero Banner Preview Component',
+        'handle' => 'hero_banner_preview_component',
     ]);
 
     $faq = ComponentDefinition::factory()->faq()->create([
@@ -306,4 +306,94 @@ it('creates an admin page from database-defined components', function () {
         ->and($payloads[0]['props']['headline'])->toBe('Builder launch')
         ->and($payloads[1]['type'])->toBe($faq->getBlockType())
         ->and($payloads[1]['props']['items'][0]['question'])->toBe('Can editors create pages?');
+});
+
+it('syncs unsaved builder state into the admin preview session', function () {
+    $user = User::factory()->create([
+        'password' => 'password',
+    ]);
+
+    $hero = ComponentDefinition::factory()->heroBanner()->create([
+        'name' => 'Hero Banner Component',
+        'handle' => 'hero_banner_component',
+    ]);
+
+    $this->actingAs($user);
+
+    $component = Livewire::test(CreatePage::class)
+        ->set('data.title', 'Preview launch')
+        ->set('data.slug', 'preview-launch')
+        ->set('data.status', PageStatus::Draft->value)
+        ->set('data.builderBlocks', [
+            [
+                'type' => $hero->getBlockType(),
+                'data' => [
+                    'headline' => 'Preview launch',
+                    'subheadline' => 'The admin editor now renders an unsaved live preview.',
+                    'cta_text' => 'Open preview',
+                    'cta_url' => '/preview-launch',
+                    'image' => [],
+                    'image_alt' => 'Preview launch hero',
+                    'text_align' => 'center',
+                ],
+            ],
+        ]);
+
+    $previewToken = $component->get('previewToken');
+    $previewPayload = session()->get("page-builder.preview.{$previewToken}");
+
+    expect($previewToken)->not->toBe('')
+        ->and($previewPayload)->toBeArray()
+        ->and($previewPayload['title'])->toBe('Preview launch')
+        ->and($previewPayload['slug'])->toBe('preview-launch')
+        ->and($previewPayload['blocks'])->toHaveCount(1)
+        ->and($previewPayload['blocks'][0]['type'])->toBe($hero->getBlockType())
+        ->and($previewPayload['blocks'][0]['props']['headline'])->toBe('Preview launch');
+});
+
+it('renders the admin preview route from session-backed builder payloads', function () {
+    $user = User::factory()->create([
+        'password' => 'password',
+    ]);
+
+    $hero = ComponentDefinition::factory()->heroBanner()->create([
+        'name' => 'Hero Banner Component',
+        'handle' => 'hero_banner_component',
+    ]);
+
+    $this->actingAs($user);
+
+    $token = 'preview-token';
+
+    session()->put("page-builder.preview.{$token}", [
+        'title' => 'Preview launch',
+        'slug' => 'preview-launch',
+        'status' => PageStatus::Draft->value,
+        'blocks' => [
+            [
+                'type' => $hero->getBlockType(),
+                'variant' => 'default',
+                'version' => 1,
+                'component_definition_id' => $hero->getKey(),
+                'component_handle' => $hero->handle,
+                'component_name' => $hero->name,
+                'view' => $hero->view,
+                'props' => [
+                    'headline' => 'Preview launch',
+                    'subheadline' => 'The admin editor now renders an unsaved live preview.',
+                    'cta_text' => 'Open preview',
+                    'cta_url' => '/preview-launch',
+                    'image' => null,
+                    'image_alt' => 'Preview launch hero',
+                    'text_align' => 'center',
+                ],
+            ],
+        ],
+    ]);
+
+    $this->get(route('admin.pages.preview', ['token' => $token]))
+        ->assertOk()
+        ->assertSee('Preview launch')
+        ->assertSee('The admin editor now renders an unsaved live preview.')
+        ->assertSee('data-testid="dynamic-hero-banner-block"', false);
 });
