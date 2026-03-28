@@ -34,10 +34,10 @@
                 @endif
             @else
                 <section class="docs-hero">
-                    <p class="docs-kicker">Storybook</p>
-                    <h1 class="docs-title">Select a component</h1>
+                    <p class="docs-kicker">Meta CMS Lab</p>
+                    <h1 class="docs-title">Select a lab story</h1>
                     <p class="docs-description">
-                        Sol taraftaki navigation alanindan bir component secerek overview ya da playground ekranina gecin.
+                        Primitive field grammarini, sistem blocklarini ve page-surface component definition previewlerini buradan test edin.
                     </p>
                 </section>
             @endif

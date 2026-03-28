@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\ComponentPropType;
+use App\ComponentSurface;
 use App\Models\ComponentDefinition;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
@@ -19,6 +20,7 @@ class ComponentDefinitionFactory extends Factory
         return [
             'name' => Str::headline($name),
             'handle' => Str::snake($name),
+            'surface' => ComponentSurface::Page,
             'category' => 'General',
             'view' => 'page-builder.components.hero-banner',
             'description' => fake()->sentence(),
@@ -43,6 +45,7 @@ class ComponentDefinitionFactory extends Factory
         return $this->state(fn (): array => [
             'name' => 'Hero Banner',
             'handle' => 'hero_banner',
+            'surface' => ComponentSurface::Page,
             'category' => 'Marketing',
             'view' => 'page-builder.components.hero-banner',
             'description' => 'Hero section with message, CTA, and image.',
@@ -115,6 +118,7 @@ class ComponentDefinitionFactory extends Factory
         return $this->state(fn (): array => [
             'name' => 'FAQ',
             'handle' => 'faq',
+            'surface' => ComponentSurface::Page,
             'category' => 'Support',
             'view' => 'page-builder.components.faq',
             'description' => 'Frequently asked questions section.',

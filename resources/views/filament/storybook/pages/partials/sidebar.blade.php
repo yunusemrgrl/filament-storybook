@@ -6,11 +6,11 @@
     <div class="docs-sidebar-header">
         <a href="{{ url('/storybook') }}" class="docs-brand">
             <span class="docs-brand-dot"></span>
-            <span>Filament Storybook</span>
+            <span>Meta CMS Lab</span>
         </a>
 
         <p class="docs-sidebar-copy">
-            Docs-first component library
+            Engine contracts, field grammar, and page-surface blocks
         </p>
 
         <div class="docs-theme-switch">

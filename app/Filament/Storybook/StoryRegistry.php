@@ -2,8 +2,11 @@
 
 namespace App\Filament\Storybook;
 
+use App\ComponentSurface;
 use App\Filament\Storybook\Blocks\BlockRegistry;
+use App\Models\ComponentDefinition;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Schema;
 use ReflectionClass;
 
 /**
@@ -47,6 +50,17 @@ class StoryRegistry
      * @return AbstractStory[]
      */
     public static function all(): array
+    {
+        return [
+            ...static::codeStories(),
+            ...static::databaseStories(),
+        ];
+    }
+
+    /**
+     * @return AbstractStory[]
+     */
+    public static function codeStories(): array
     {
         if (static::$stories === null) {
             static::discover();
@@ -220,5 +234,31 @@ class StoryRegistry
     {
         static::$stories = null;
         BlockRegistry::flush();
+    }
+
+    /**
+     * @return array<int, AbstractStory>
+     */
+    private static function databaseStories(): array
+    {
+        if (! app()->bound('db')) {
+            return [];
+        }
+
+        try {
+            if (! Schema::hasTable('component_definitions')) {
+                return [];
+            }
+
+            return ComponentDefinition::query()
+                ->active()
+                ->forSurface(ComponentSurface::Page)
+                ->orderBy('name')
+                ->get()
+                ->map(static fn (ComponentDefinition $definition): AbstractStory => $definition->toDatabaseBlock())
+                ->all();
+        } catch (\Throwable) {
+            return [];
+        }
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Storybook\Blocks;
 
+use App\ComponentSurface;
 use InvalidArgumentException;
 
 class BlockFactory
@@ -17,7 +18,7 @@ class BlockFactory
             throw new InvalidArgumentException('Block payload icin type zorunludur.');
         }
 
-        $story = BlockRegistry::findByType($type);
+        $story = BlockRegistry::findByTypeForSurface(ComponentSurface::Page, $type);
 
         if (! $story) {
             throw new InvalidArgumentException("Kayitli block bulunamadi: {$type}");

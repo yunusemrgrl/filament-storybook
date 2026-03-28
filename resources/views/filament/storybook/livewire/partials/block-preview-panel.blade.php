@@ -6,7 +6,7 @@
         </div>
 
         <p class="docs-card-copy">
-            Storybook preview ile page builder runtime ayni block viewini paylasir.
+                        Lab preview ile CMS runtime ayni block view ailesini paylasir.
         </p>
     </div>
 

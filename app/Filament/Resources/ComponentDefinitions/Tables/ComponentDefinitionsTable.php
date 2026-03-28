@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ComponentDefinitions\Tables;
 
+use App\ComponentSurface;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -20,6 +21,13 @@ class ComponentDefinitionsTable
                     ->sortable(),
                 TextColumn::make('handle')
                     ->searchable(),
+                TextColumn::make('surface')
+                    ->badge()
+                    ->formatStateUsing(fn ($state): string => ($state instanceof ComponentSurface
+                        ? $state
+                        : ComponentSurface::tryFrom((string) $state) ?? ComponentSurface::Page)
+                        ->label())
+                    ->sortable(),
                 TextColumn::make('category')
                     ->badge()
                     ->sortable(),

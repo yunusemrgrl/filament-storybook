@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Casts\ComponentDefinitionCollectionCast;
 use App\ComponentPropDefinitionCollection;
+use App\ComponentSurface;
 use App\Filament\Storybook\Blocks\BlockRegistry;
 use App\Filament\Storybook\Blocks\DatabaseComponentBlock;
 use Database\Factories\ComponentDefinitionFactory;
@@ -17,6 +18,7 @@ use Illuminate\Support\Str;
 #[Fillable([
     'name',
     'handle',
+    'surface',
     'description',
     'category',
     'view',
@@ -50,6 +52,17 @@ class ComponentDefinition extends Model
                 $definition->handle = 'component';
             }
 
+            $validSurfaceValues = array_map(
+                static fn (ComponentSurface $surface): string => $surface->value,
+                ComponentSurface::cases(),
+            );
+
+            $definition->surface = match (true) {
+                $definition->surface instanceof ComponentSurface => $definition->surface->value,
+                in_array($definition->surface, $validSurfaceValues, true) => $definition->surface,
+                default => ComponentSurface::Page->value,
+            };
+
             $definition->default_values = $definition->props->normalizeValues(
                 is_array($definition->default_values) ? $definition->default_values : [],
             );
@@ -73,12 +86,18 @@ class ComponentDefinition extends Model
             'props' => ComponentDefinitionCollectionCast::class,
             'default_values' => 'array',
             'is_active' => 'boolean',
+            'surface' => ComponentSurface::class,
         ];
     }
 
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
+    }
+
+    public function scopeForSurface(Builder $query, ComponentSurface|string $surface): Builder
+    {
+        return $query->where('surface', $surface instanceof ComponentSurface ? $surface->value : $surface);
     }
 
     public function toDatabaseBlock(): DatabaseComponentBlock
@@ -89,6 +108,13 @@ class ComponentDefinition extends Model
     public function getBlockType(): string
     {
         return "component-{$this->handle}";
+    }
+
+    public function getSurface(): ComponentSurface
+    {
+        return $this->surface instanceof ComponentSurface
+            ? $this->surface
+            : ComponentSurface::Page;
     }
 
     public function getBuilderLabelField(): ?string

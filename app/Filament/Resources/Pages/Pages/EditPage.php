@@ -3,16 +3,21 @@
 namespace App\Filament\Resources\Pages\Pages;
 
 use App\Filament\Resources\Pages\PageResource;
-use App\Filament\Resources\Pages\Pages\Concerns\InteractsWithPageBuilderPreview;
-use App\Filament\Storybook\Blocks\BuilderStateMapper;
+use App\Filament\Resources\Pages\Pages\Concerns\InteractsWithPageBuilderShell;
+use App\PageStatus;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Support\Enums\Width;
 
 class EditPage extends EditRecord
 {
-    use InteractsWithPageBuilderPreview;
+    use InteractsWithPageBuilderShell;
 
     protected static string $resource = PageResource::class;
+
+    protected string $view = 'filament.resources.pages.pages.builder-shell';
+
+    protected Width|string|null $maxContentWidth = Width::Full;
 
     protected function getHeaderActions(): array
     {
@@ -21,15 +26,9 @@ class EditPage extends EditRecord
         ];
     }
 
-    /**
-     * @param  array<string, mixed>  $data
-     * @return array<string, mixed>
-     */
-    protected function mutateFormDataBeforeFill(array $data): array
+    protected function afterFill(): void
     {
-        $data['builderBlocks'] = app(BuilderStateMapper::class)->toBuilderState($data['blocks'] ?? []);
-
-        return $data;
+        $this->bootPageBuilderShell($this->getRecord()->blocks->toArray());
     }
 
     /**
@@ -38,9 +37,25 @@ class EditPage extends EditRecord
      */
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        $data['blocks'] = app(BuilderStateMapper::class)->fromBuilderState($data['builderBlocks'] ?? []);
-        unset($data['builderBlocks']);
+        $data['blocks'] = $this->getPersistedEditorBlocks();
 
         return $data;
+    }
+
+    public function publishPage(): void
+    {
+        $this->data['status'] = PageStatus::Published->value;
+
+        $this->save(shouldRedirect: false);
+    }
+
+    public function getEditorSubmitMethod(): string
+    {
+        return 'save';
+    }
+
+    public function getEditorPrimaryActionLabel(): string
+    {
+        return 'Save changes';
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Storybook\Blocks;
 
+use App\ComponentSurface;
 use App\Filament\Storybook\AbstractBlockStory;
 use App\Filament\Storybook\StoryRegistry;
 use App\Models\ComponentDefinition;
@@ -10,39 +11,41 @@ use Illuminate\Support\Facades\Schema;
 class BlockRegistry
 {
     /**
-     * @var array<string, AbstractBlockStory>|null
+     * @var array<string, array<string, AbstractBlockStory>>
      */
-    private static ?array $blocks = null;
+    private static array $codeBlocks = [];
 
     /**
      * @return array<string, AbstractBlockStory>
      */
     public static function all(): array
     {
-        if (static::$blocks !== null) {
-            return static::$blocks;
-        }
+        return static::forSurface(ComponentSurface::Page);
+    }
 
-        $blocks = [];
+    /**
+     * @return array<string, AbstractBlockStory>
+     */
+    public static function forSurface(ComponentSurface|string $surface): array
+    {
+        $surface = static::normalizeSurface($surface);
+        $blocks = static::codeBlocksForSurface($surface);
 
-        foreach (StoryRegistry::all() as $story) {
-            if (! $story instanceof AbstractBlockStory) {
-                continue;
-            }
-
-            $blocks[$story->getBlockType()] = $story;
-        }
-
-        foreach (static::databaseComponents() as $component) {
+        foreach (static::databaseComponentsForSurface($surface) as $component) {
             $blocks[$component->getBlockType()] = $component;
         }
 
-        return static::$blocks = $blocks;
+        return $blocks;
     }
 
     public static function findByType(string $type): ?AbstractBlockStory
     {
-        return static::all()[$type] ?? null;
+        return static::findByTypeForSurface(ComponentSurface::Page, $type);
+    }
+
+    public static function findByTypeForSurface(ComponentSurface|string $surface, string $type): ?AbstractBlockStory
+    {
+        return static::forSurface($surface)[$type] ?? null;
     }
 
     /**
@@ -50,27 +53,42 @@ class BlockRegistry
      */
     public static function cms(): array
     {
+        return static::cmsForSurface(ComponentSurface::Page);
+    }
+
+    /**
+     * @return array<string, AbstractBlockStory>
+     */
+    public static function cmsForSurface(ComponentSurface|string $surface): array
+    {
         return array_filter(
-            static::all(),
+            static::forSurface($surface),
             static fn (AbstractBlockStory $story): bool => $story->supportsCmsBuilder(),
         );
     }
 
     public static function findCmsByType(string $type): ?AbstractBlockStory
     {
-        return static::cms()[$type] ?? null;
+        return static::findCmsByTypeForSurface(ComponentSurface::Page, $type);
+    }
+
+    public static function findCmsByTypeForSurface(ComponentSurface|string $surface, string $type): ?AbstractBlockStory
+    {
+        return static::cmsForSurface($surface)[$type] ?? null;
     }
 
     public static function flush(): void
     {
-        static::$blocks = null;
+        static::$codeBlocks = [];
     }
 
     /**
      * @return array<int, DatabaseComponentBlock>
      */
-    private static function databaseComponents(): array
+    public static function databaseComponentsForSurface(ComponentSurface|string $surface): array
     {
+        $surface = static::normalizeSurface($surface);
+
         if (! app()->bound('db')) {
             return [];
         }
@@ -82,6 +100,7 @@ class BlockRegistry
 
             return ComponentDefinition::query()
                 ->active()
+                ->forSurface($surface)
                 ->orderBy('name')
                 ->get()
                 ->map(static fn (ComponentDefinition $definition): DatabaseComponentBlock => $definition->toDatabaseBlock())
@@ -89,5 +108,36 @@ class BlockRegistry
         } catch (\Throwable) {
             return [];
         }
+    }
+
+    private static function normalizeSurface(ComponentSurface|string $surface): ComponentSurface
+    {
+        return $surface instanceof ComponentSurface
+            ? $surface
+            : ComponentSurface::tryFrom($surface) ?? ComponentSurface::Page;
+    }
+
+    /**
+     * @return array<string, AbstractBlockStory>
+     */
+    private static function codeBlocksForSurface(ComponentSurface $surface): array
+    {
+        $cacheKey = $surface->value;
+
+        if (array_key_exists($cacheKey, static::$codeBlocks)) {
+            return static::$codeBlocks[$cacheKey];
+        }
+
+        $blocks = [];
+
+        foreach (StoryRegistry::codeStories() as $story) {
+            if (! $story instanceof AbstractBlockStory || $story->getSurface() !== $surface) {
+                continue;
+            }
+
+            $blocks[$story->getBlockType()] = $story;
+        }
+
+        return static::$codeBlocks[$cacheKey] = $blocks;
     }
 }

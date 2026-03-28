@@ -2,6 +2,7 @@
 
 namespace App\Filament\Storybook\Blocks;
 
+use App\ComponentSurface;
 use InvalidArgumentException;
 
 class BuilderStateMapper
@@ -25,7 +26,7 @@ class BuilderStateMapper
                 throw new InvalidArgumentException('Builder item type zorunludur.');
             }
 
-            $story = BlockRegistry::findCmsByType($type);
+            $story = BlockRegistry::findCmsByTypeForSurface(ComponentSurface::Page, $type);
 
             if (! $story) {
                 throw new InvalidArgumentException("CMS builder icin kayitli block bulunamadi: {$type}");
@@ -64,7 +65,7 @@ class BuilderStateMapper
                 throw new InvalidArgumentException('Persisted block payload icin type zorunludur.');
             }
 
-            $story = BlockRegistry::findCmsByType($type);
+            $story = BlockRegistry::findCmsByTypeForSurface(ComponentSurface::Page, $type);
 
             if (! $story) {
                 throw new InvalidArgumentException("CMS builder icin kayitli block bulunamadi: {$type}");

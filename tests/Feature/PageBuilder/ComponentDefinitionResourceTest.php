@@ -1,5 +1,6 @@
 <?php
 
+use App\ComponentSurface;
 use App\Filament\Resources\ComponentDefinitions\Pages\CreateComponentDefinition;
 use App\Filament\Resources\ComponentDefinitions\Pages\EditComponentDefinition;
 use App\Filament\Storybook\Blocks\BlockRegistry;
@@ -27,6 +28,7 @@ it('creates a component definition with prop schema and default values', functio
         ->fillForm([
             'name' => 'Hero Banner Component',
             'handle' => 'hero_banner_component',
+            'surface' => ComponentSurface::Page->value,
             'category' => 'Marketing',
             'view' => 'page-builder.components.hero-banner',
             'is_active' => true,
@@ -70,6 +72,7 @@ it('creates a component definition with prop schema and default values', functio
         ->firstOrFail();
 
     expect($definition->name)->toBe('Hero Banner Component')
+        ->and($definition->getSurface())->toBe(ComponentSurface::Page)
         ->and($definition->propsCollection()->count())->toBe(3)
         ->and($definition->getDefaultValues())->toBe([
             'headline' => 'Launch faster',
@@ -94,6 +97,7 @@ it('hydrates and edits an existing component definition', function () {
         ->assertFormSet([
             'name' => 'Hero Banner Component',
             'handle' => 'hero_banner_component',
+            'surface' => ComponentSurface::Page->value,
             'view' => 'page-builder.components.hero-banner',
         ])
         ->fillForm([

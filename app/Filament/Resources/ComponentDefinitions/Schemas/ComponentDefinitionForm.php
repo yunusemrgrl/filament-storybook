@@ -4,6 +4,7 @@ namespace App\Filament\Resources\ComponentDefinitions\Schemas;
 
 use App\ComponentPropDefinitionCollection;
 use App\ComponentPropType;
+use App\ComponentSurface;
 use App\Filament\Storybook\Support\KnobSchemaCompiler;
 use App\Models\ComponentDefinition;
 use Filament\Forms\Components\Repeater;
@@ -46,6 +47,12 @@ class ComponentDefinitionForm
                             ->unique(ignoreRecord: true)
                             ->helperText('Builder ve runtime tarafinda benzersiz block tipi olarak kullanilir.')
                             ->extraInputAttributes(['data-testid' => 'component-handle-input']),
+                        Select::make('surface')
+                            ->required()
+                            ->options(ComponentSurface::options())
+                            ->default(ComponentSurface::Page->value)
+                            ->helperText('Ilk milestone sadece page surface editorunde aktif olarak kullanilir.')
+                            ->extraInputAttributes(['data-testid' => 'component-surface-select']),
                         Select::make('view')
                             ->label('Template view')
                             ->options(ComponentDefinition::viewOptions())
@@ -60,7 +67,7 @@ class ComponentDefinitionForm
                         Toggle::make('is_active')
                             ->label('Active')
                             ->default(true)
-                            ->helperText('Kapaliysa page builder katalogunda gorunmez.'),
+                            ->helperText('Kapaliysa secili surface katalogunda gorunmez.'),
                         Textarea::make('description')
                             ->rows(3)
                             ->columnSpanFull()

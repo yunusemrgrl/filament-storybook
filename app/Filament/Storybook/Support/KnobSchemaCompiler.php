@@ -2,10 +2,9 @@
 
 namespace App\Filament\Storybook\Support;
 
+use App\Filament\Forms\Components\NativeFileUpload;
 use App\Filament\Storybook\KnobDefinition;
-use Filament\Forms\Components\BaseFileUpload;
 use Filament\Forms\Components\Field;
-use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -95,11 +94,10 @@ class KnobSchemaCompiler
         return $component;
     }
 
-    private function makeFileUpload(KnobDefinition $definition): BaseFileUpload
+    private function makeFileUpload(KnobDefinition $definition): NativeFileUpload
     {
-        $component = FileUpload::make($definition->getName())
-            ->disk($definition->getFileDisk() ?? 'public')
-            ->directory($definition->getFileDirectory() ?? 'storybook/uploads');
+        $component = NativeFileUpload::make($definition->getName())
+            ->disk($definition->getFileDisk() ?? 'public');
 
         if ($definition->isImageFile()) {
             $component->image();
@@ -152,6 +150,10 @@ class KnobSchemaCompiler
 
     private function applyLiveBinding(Field $component, KnobDefinition $definition): void
     {
+        if ($definition->getType() === KnobDefinition::TYPE_FILE) {
+            return;
+        }
+
         if (in_array($definition->getType(), [KnobDefinition::TYPE_TEXT, KnobDefinition::TYPE_NUMBER], true)) {
             $component->live(debounce: 150);
 
@@ -177,6 +179,12 @@ class KnobSchemaCompiler
 
         if (method_exists($component, 'extraInputAttributes')) {
             $component->extraInputAttributes([
+                'data-testid' => "{$baseTestId}-{$this->resolveInputSuffix($definition)}",
+            ]);
+        }
+
+        if (method_exists($component, 'inputAttributes')) {
+            $component->inputAttributes([
                 'data-testid' => "{$baseTestId}-{$this->resolveInputSuffix($definition)}",
             ]);
         }

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Storybook\Blocks;
 
+use App\ComponentSurface;
 use App\Filament\Storybook\AbstractBlockStory;
 use App\Filament\Storybook\Blocks\Contracts\BlockDataContract;
 use App\Filament\Storybook\Blocks\Data\ComponentDefinitionBlockData;
@@ -19,6 +20,7 @@ class DatabaseComponentBlock extends AbstractBlockStory
         $this->title = $definition->name;
         $this->description = $definition->description ?? '';
         $this->slug = 'components-'.$definition->handle;
+        $this->group = filled($definition->category) ? $definition->category : 'Components';
     }
 
     public function variants(): array
@@ -47,6 +49,11 @@ class DatabaseComponentBlock extends AbstractBlockStory
     public function getBlockType(): string
     {
         return $this->definition->getBlockType();
+    }
+
+    public function getSurface(): ComponentSurface
+    {
+        return $this->definition->getSurface();
     }
 
     /**
@@ -78,6 +85,11 @@ class DatabaseComponentBlock extends AbstractBlockStory
     public function getFrontendView(): string
     {
         return $this->definition->view;
+    }
+
+    public function getBuilderPreviewView(): ?string
+    {
+        return 'filament.resources.pages.partials.builder-block-preview';
     }
 
     /**

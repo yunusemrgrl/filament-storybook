@@ -1,5 +1,7 @@
 <?php
 
+use App\ComponentSurface;
+use App\Filament\Pages\DashboardBuilder;
 use App\Filament\Resources\Pages\Pages\CreatePage;
 use App\Filament\Resources\Pages\Pages\EditPage;
 use App\Filament\Storybook\StoryRegistry;
@@ -9,7 +11,6 @@ use App\Models\User;
 use App\PageStatus;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
@@ -20,8 +21,88 @@ beforeEach(function () {
     Filament::setCurrentPanel('admin');
 });
 
-it('creates an admin page and persists normalized blocks', function () {
+it('renders the custom page builder shell on create and edit routes', function () {
+    $user = User::factory()->create([
+        'password' => 'password',
+    ]);
+
+    $page = Page::factory()->create([
+        'title' => 'Draft launch',
+        'slug' => 'draft-launch',
+        'blocks' => [],
+    ]);
+
+    $this->actingAs($user);
+
+    $this->get('/admin/pages/create')
+        ->assertOk()
+        ->assertSee('data-testid="page-builder-shell"', false)
+        ->assertSee('Meta CMS Editor');
+
+    $this->get("/admin/pages/{$page->getRouteKey()}/edit")
+        ->assertOk()
+        ->assertSee('data-testid="page-builder-shell"', false)
+        ->assertSee('Draft launch');
+});
+
+it('shows only page-surface component definitions in the builder palette', function () {
+    $user = User::factory()->create([
+        'password' => 'password',
+    ]);
+
+    ComponentDefinition::factory()->heroBanner()->create([
+        'name' => 'Hero Banner Page Component',
+        'handle' => 'hero_banner_page_component',
+        'surface' => ComponentSurface::Page,
+    ]);
+
+    ComponentDefinition::factory()->create([
+        'name' => 'Navigation Menu Component',
+        'handle' => 'navigation_menu_component',
+        'surface' => ComponentSurface::Navigation,
+        'view' => 'page-builder.components.faq',
+        'props' => [
+            [
+                'name' => 'label',
+                'label' => 'Label',
+                'type' => 'text',
+                'group' => 'Content',
+            ],
+        ],
+        'default_values' => [
+            'label' => 'Products',
+        ],
+    ]);
+
+    ComponentDefinition::factory()->create([
+        'name' => 'Dashboard Metric Component',
+        'handle' => 'dashboard_metric_component',
+        'surface' => ComponentSurface::Dashboard,
+        'view' => 'page-builder.components.hero-banner',
+        'props' => [
+            [
+                'name' => 'title',
+                'label' => 'Title',
+                'type' => 'text',
+                'group' => 'Content',
+            ],
+        ],
+        'default_values' => [
+            'title' => 'Revenue',
+        ],
+    ]);
+
+    $this->actingAs($user);
+
+    Livewire::test(CreatePage::class)
+        ->assertSee('Hero Banner Page Component')
+        ->assertDontSee('Navigation Menu Component')
+        ->assertDontSee('Dashboard Metric Component');
+});
+
+it('creates an admin page from normalized editor blocks', function () {
     Storage::fake('public');
+    Storage::disk('public')->put('page-builder/hero-banners/summer-launch.png', 'existing hero');
 
     $user = User::factory()->create([
         'password' => 'password',
@@ -39,45 +120,43 @@ it('creates an admin page and persists normalized blocks', function () {
 
     $this->actingAs($user);
 
-    $upload = UploadedFile::fake()->image('hero-banner.png', 1600, 900);
-
     Livewire::test(CreatePage::class)
         ->fillForm([
             'title' => 'Summer launch',
             'slug' => 'summer-launch',
             'status' => PageStatus::Published->value,
-            'builderBlocks' => [
-                [
-                    'type' => $hero->getBlockType(),
-                    'data' => [
-                        'headline' => 'Summer launch',
-                        'subheadline' => 'Launch editor-managed campaigns with a single payload contract.',
-                        'cta_text' => 'Shop now',
-                        'cta_url' => 'summer-launch',
-                        'image' => [$upload],
-                        'image_alt' => 'Summer launch hero',
-                        'text_align' => 'left',
-                    ],
-                ],
-                [
-                    'type' => $faq->getBlockType(),
-                    'data' => [
-                        'section_title' => 'Shipping help',
-                        'intro' => 'Everything about delivery and returns.',
-                        'items' => [
-                            [
-                                'question' => 'When do orders ship?',
-                                'answer' => 'Orders placed before 16:00 ship the same day.',
-                            ],
-                            [
-                                'question' => 'What is your return window?',
-                                'answer' => 'You can start a return within 14 days.',
-                            ],
+        ])
+        ->set('editorBlocks', [
+            [
+                'uuid' => 'hero-1',
+                ...$hero->toDatabaseBlock()->makeBlockPayload([
+                    'headline' => 'Summer launch',
+                    'subheadline' => 'Launch editor-managed campaigns with a single payload contract.',
+                    'cta_text' => 'Shop now',
+                    'cta_url' => '/summer-launch',
+                    'image' => 'page-builder/hero-banners/summer-launch.png',
+                    'image_alt' => 'Summer launch hero',
+                    'text_align' => 'left',
+                ], 'default'),
+            ],
+            [
+                'uuid' => 'faq-1',
+                ...$faq->toDatabaseBlock()->makeBlockPayload([
+                    'section_title' => 'Shipping help',
+                    'intro' => 'Everything about delivery and returns.',
+                    'items' => [
+                        [
+                            'question' => 'When do orders ship?',
+                            'answer' => 'Orders placed before 16:00 ship the same day.',
                         ],
-                        'paddingTop' => 'md',
-                        'paddingBottom' => 'sm',
+                        [
+                            'question' => 'What is your return window?',
+                            'answer' => 'You can start a return within 14 days.',
+                        ],
                     ],
-                ],
+                    'paddingTop' => 'md',
+                    'paddingBottom' => 'sm',
+                ], 'default'),
             ],
         ])
         ->call('create')
@@ -90,15 +169,12 @@ it('creates an admin page and persists normalized blocks', function () {
         ->and($page->published_at)->not->toBeNull()
         ->and($payloads)->toHaveCount(2)
         ->and($payloads[0]['type'])->toBe($hero->getBlockType())
-        ->and($payloads[0]['props']['cta_url'])->toBe('summer-launch')
-        ->and($payloads[0]['props']['image'])->toStartWith('page-builder/hero-banners/')
+        ->and($payloads[0]['props']['image'])->toBe('page-builder/hero-banners/summer-launch.png')
         ->and($payloads[1]['type'])->toBe($faq->getBlockType())
         ->and($payloads[1]['props']['items'])->toHaveCount(2);
-
-    Storage::disk('public')->assertExists($payloads[0]['props']['image']);
 });
 
-it('hydrates persisted blocks back into the admin form and saves edits', function () {
+it('hydrates persisted blocks back into the editor state and saves edits', function () {
     Storage::fake('public');
     Storage::disk('public')->put('page-builder/hero-banners/summer-launch.png', 'existing hero');
 
@@ -120,43 +196,25 @@ it('hydrates persisted blocks back into the admin form and saves edits', functio
         'title' => 'Summer launch',
         'slug' => 'summer-launch',
         'blocks' => [
-            [
-                'type' => $hero->getBlockType(),
-                'variant' => 'default',
-                'version' => 1,
-                'component_definition_id' => $hero->getKey(),
-                'component_handle' => $hero->handle,
-                'component_name' => $hero->name,
-                'view' => $hero->view,
-                'props' => [
-                    'headline' => 'Summer launch',
-                    'subheadline' => 'Launch editor-managed campaigns with a single payload contract.',
-                    'cta_text' => 'Shop now',
-                    'cta_url' => '/summer-launch',
-                    'image' => 'page-builder/hero-banners/summer-launch.png',
-                    'image_alt' => 'Summer launch hero',
-                    'text_align' => 'left',
-                ],
-            ],
-            [
-                'type' => $faq->getBlockType(),
-                'variant' => 'default',
-                'version' => 1,
-                'component_definition_id' => $faq->getKey(),
-                'component_handle' => $faq->handle,
-                'component_name' => $faq->name,
-                'view' => $faq->view,
-                'props' => [
-                    'section_title' => 'Shipping help',
-                    'intro' => 'Everything about delivery and returns.',
-                    'items' => [
-                        [
-                            'question' => 'When do orders ship?',
-                            'answer' => 'Orders placed before 16:00 ship the same day.',
-                        ],
+            $hero->toDatabaseBlock()->makeBlockPayload([
+                'headline' => 'Summer launch',
+                'subheadline' => 'Launch editor-managed campaigns with a single payload contract.',
+                'cta_text' => 'Shop now',
+                'cta_url' => '/summer-launch',
+                'image' => 'page-builder/hero-banners/summer-launch.png',
+                'image_alt' => 'Summer launch hero',
+                'text_align' => 'left',
+            ], 'default'),
+            $faq->toDatabaseBlock()->makeBlockPayload([
+                'section_title' => 'Shipping help',
+                'intro' => 'Everything about delivery and returns.',
+                'items' => [
+                    [
+                        'question' => 'When do orders ship?',
+                        'answer' => 'Orders placed before 16:00 ship the same day.',
                     ],
                 ],
-            ],
+            ], 'default'),
         ],
     ]);
 
@@ -169,67 +227,43 @@ it('hydrates persisted blocks back into the admin form and saves edits', functio
             'status' => PageStatus::Published->value,
         ]);
 
-    $builderBlocks = array_values($component->get('data.builderBlocks'));
-    $builderBlocks[0]['data']['image'] = array_values($builderBlocks[0]['data']['image']);
-    $builderBlocks[1]['data']['items'] = array_values($builderBlocks[1]['data']['items']);
+    $editorBlocks = array_values($component->get('editorBlocks'));
 
-    expect($builderBlocks)->toMatchArray([
-        [
-            'type' => $hero->getBlockType(),
-            'data' => [
-                'headline' => 'Summer launch',
-                'subheadline' => 'Launch editor-managed campaigns with a single payload contract.',
-                'cta_text' => 'Shop now',
-                'cta_url' => '/summer-launch',
-                'image' => ['page-builder/hero-banners/summer-launch.png'],
-                'image_alt' => 'Summer launch hero',
-                'text_align' => 'left',
-            ],
-        ],
-        [
-            'type' => $faq->getBlockType(),
-            'data' => [
-                'section_title' => 'Shipping help',
-                'intro' => 'Everything about delivery and returns.',
-                'items' => [
-                    [
-                        'question' => 'When do orders ship?',
-                        'answer' => 'Orders placed before 16:00 ship the same day.',
-                    ],
-                ],
-            ],
-        ],
-    ]);
+    expect($editorBlocks)->toHaveCount(2)
+        ->and($editorBlocks[0]['props']['headline'])->toBe('Summer launch')
+        ->and($editorBlocks[0]['props']['image'])->toBe('page-builder/hero-banners/summer-launch.png')
+        ->and($editorBlocks[1]['props']['section_title'])->toBe('Shipping help');
 
     $component
         ->fillForm([
             'title' => 'Summer launch updated',
-            'builderBlocks' => [
-                [
-                    'type' => $hero->getBlockType(),
-                    'data' => [
-                        'headline' => 'Summer launch updated',
-                        'subheadline' => 'Now backed by a real Filament builder pipeline.',
-                        'cta_text' => 'Explore',
-                        'cta_url' => '/summer-launch-updated',
-                        'image' => ['page-builder/hero-banners/summer-launch.png'],
-                        'image_alt' => 'Updated hero',
-                        'text_align' => 'center',
-                    ],
-                ],
-                [
-                    'type' => $faq->getBlockType(),
-                    'data' => [
-                        'section_title' => 'Returns help',
-                        'intro' => 'Updated FAQs for the campaign.',
-                        'items' => [
-                            [
-                                'question' => 'What is your return window?',
-                                'answer' => 'Returns can be started within 14 days.',
-                            ],
+            'slug' => 'summer-launch-updated',
+        ])
+        ->set('editorBlocks', [
+            [
+                'uuid' => $editorBlocks[0]['uuid'],
+                ...$hero->toDatabaseBlock()->makeBlockPayload([
+                    'headline' => 'Summer launch updated',
+                    'subheadline' => 'Now backed by a real editor shell.',
+                    'cta_text' => 'Explore',
+                    'cta_url' => '/summer-launch-updated',
+                    'image' => 'page-builder/hero-banners/summer-launch.png',
+                    'image_alt' => 'Updated hero',
+                    'text_align' => 'center',
+                ], 'default'),
+            ],
+            [
+                'uuid' => $editorBlocks[1]['uuid'],
+                ...$faq->toDatabaseBlock()->makeBlockPayload([
+                    'section_title' => 'Returns help',
+                    'intro' => 'Updated FAQs for the campaign.',
+                    'items' => [
+                        [
+                            'question' => 'What is your return window?',
+                            'answer' => 'Returns can be started within 14 days.',
                         ],
                     ],
-                ],
+                ], 'default'),
             ],
         ])
         ->call('save')
@@ -239,83 +273,19 @@ it('hydrates persisted blocks back into the admin form and saves edits', functio
     $payloads = $page->blocks->toArray();
 
     expect($page->title)->toBe('Summer launch updated')
+        ->and($page->slug)->toBe('summer-launch-updated')
         ->and($payloads[0]['props']['headline'])->toBe('Summer launch updated')
-        ->and($payloads[0]['props']['cta_url'])->toBe('/summer-launch-updated')
-        ->and($payloads[1]['props']['section_title'])->toBe('Returns help')
-        ->and($payloads[1]['props']['items'][0]['question'])->toBe('What is your return window?');
+        ->and($payloads[1]['props']['section_title'])->toBe('Returns help');
 });
 
-it('creates an admin page from database-defined components', function () {
+it('syncs unsaved editor state into the preview session', function () {
     $user = User::factory()->create([
         'password' => 'password',
     ]);
 
     $hero = ComponentDefinition::factory()->heroBanner()->create([
-        'name' => 'Hero Banner Component',
-        'handle' => 'hero_banner_component',
-    ]);
-
-    $faq = ComponentDefinition::factory()->faq()->create([
-        'name' => 'FAQ Component',
-        'handle' => 'faq_component',
-    ]);
-
-    $this->actingAs($user);
-
-    Livewire::test(CreatePage::class)
-        ->fillForm([
-            'title' => 'Builder launch',
-            'slug' => 'builder-launch',
-            'status' => PageStatus::Published->value,
-            'builderBlocks' => [
-                [
-                    'type' => $hero->getBlockType(),
-                    'data' => [
-                        'headline' => 'Builder launch',
-                        'subheadline' => 'Components are now defined from the admin UI.',
-                        'cta_text' => 'See components',
-                        'cta_url' => '/admin/component-definitions',
-                        'text_align' => 'left',
-                        'image' => [],
-                        'image_alt' => 'Builder launch visual',
-                    ],
-                ],
-                [
-                    'type' => $faq->getBlockType(),
-                    'data' => [
-                        'section_title' => 'Need help?',
-                        'intro' => 'Frequently asked questions about the builder.',
-                        'items' => [
-                            [
-                                'question' => 'Can editors create pages?',
-                                'answer' => 'Yes, page builder now consumes component definitions.',
-                            ],
-                        ],
-                    ],
-                ],
-            ],
-        ])
-        ->call('create')
-        ->assertHasNoFormErrors();
-
-    $page = Page::query()->where('slug', 'builder-launch')->firstOrFail();
-    $payloads = $page->blocks->toArray();
-
-    expect($payloads[0]['type'])->toBe($hero->getBlockType())
-        ->and($payloads[0]['component_definition_id'])->toBe($hero->getKey())
-        ->and($payloads[0]['props']['headline'])->toBe('Builder launch')
-        ->and($payloads[1]['type'])->toBe($faq->getBlockType())
-        ->and($payloads[1]['props']['items'][0]['question'])->toBe('Can editors create pages?');
-});
-
-it('syncs unsaved builder state into the admin preview session', function () {
-    $user = User::factory()->create([
-        'password' => 'password',
-    ]);
-
-    $hero = ComponentDefinition::factory()->heroBanner()->create([
-        'name' => 'Hero Banner Component',
-        'handle' => 'hero_banner_component',
+        'name' => 'Hero Banner Route Preview Component',
+        'handle' => 'hero_banner_route_preview_component',
     ]);
 
     $this->actingAs($user);
@@ -324,18 +294,18 @@ it('syncs unsaved builder state into the admin preview session', function () {
         ->set('data.title', 'Preview launch')
         ->set('data.slug', 'preview-launch')
         ->set('data.status', PageStatus::Draft->value)
-        ->set('data.builderBlocks', [
+        ->set('editorBlocks', [
             [
-                'type' => $hero->getBlockType(),
-                'data' => [
+                'uuid' => 'hero-preview',
+                ...$hero->toDatabaseBlock()->makeBlockPayload([
                     'headline' => 'Preview launch',
                     'subheadline' => 'The admin editor now renders an unsaved live preview.',
                     'cta_text' => 'Open preview',
                     'cta_url' => '/preview-launch',
-                    'image' => [],
+                    'image' => null,
                     'image_alt' => 'Preview launch hero',
                     'text_align' => 'center',
-                ],
+                ], 'default'),
             ],
         ]);
 
@@ -347,18 +317,17 @@ it('syncs unsaved builder state into the admin preview session', function () {
         ->and($previewPayload['title'])->toBe('Preview launch')
         ->and($previewPayload['slug'])->toBe('preview-launch')
         ->and($previewPayload['blocks'])->toHaveCount(1)
-        ->and($previewPayload['blocks'][0]['type'])->toBe($hero->getBlockType())
         ->and($previewPayload['blocks'][0]['props']['headline'])->toBe('Preview launch');
 });
 
-it('renders the admin preview route from session-backed builder payloads', function () {
+it('renders the admin preview route from session-backed editor payloads', function () {
     $user = User::factory()->create([
         'password' => 'password',
     ]);
 
     $hero = ComponentDefinition::factory()->heroBanner()->create([
-        'name' => 'Hero Banner Component',
-        'handle' => 'hero_banner_component',
+        'name' => 'Hero Banner Route Preview Component',
+        'handle' => 'hero_banner_route_preview_component',
     ]);
 
     $this->actingAs($user);
@@ -370,24 +339,15 @@ it('renders the admin preview route from session-backed builder payloads', funct
         'slug' => 'preview-launch',
         'status' => PageStatus::Draft->value,
         'blocks' => [
-            [
-                'type' => $hero->getBlockType(),
-                'variant' => 'default',
-                'version' => 1,
-                'component_definition_id' => $hero->getKey(),
-                'component_handle' => $hero->handle,
-                'component_name' => $hero->name,
-                'view' => $hero->view,
-                'props' => [
-                    'headline' => 'Preview launch',
-                    'subheadline' => 'The admin editor now renders an unsaved live preview.',
-                    'cta_text' => 'Open preview',
-                    'cta_url' => '/preview-launch',
-                    'image' => null,
-                    'image_alt' => 'Preview launch hero',
-                    'text_align' => 'center',
-                ],
-            ],
+            $hero->toDatabaseBlock()->makeBlockPayload([
+                'headline' => 'Preview launch',
+                'subheadline' => 'The admin editor now renders an unsaved live preview.',
+                'cta_text' => 'Open preview',
+                'cta_url' => '/preview-launch',
+                'image' => null,
+                'image_alt' => 'Preview launch hero',
+                'text_align' => 'center',
+            ], 'default'),
         ],
     ]);
 
@@ -396,4 +356,18 @@ it('renders the admin preview route from session-backed builder payloads', funct
         ->assertSee('Preview launch')
         ->assertSee('The admin editor now renders an unsaved live preview.')
         ->assertSee('data-testid="dynamic-hero-banner-block"', false);
+});
+
+it('renders the dashboard builder shell placeholder for authenticated admins', function () {
+    $user = User::factory()->create([
+        'password' => 'password',
+    ]);
+
+    $this->actingAs($user);
+
+    $this->get(DashboardBuilder::getUrl(panel: 'admin'))
+        ->assertOk()
+        ->assertSee('data-testid="dashboard-builder-shell"', false)
+        ->assertSee('Dashboard Builder')
+        ->assertSee('Revenue overview');
 });

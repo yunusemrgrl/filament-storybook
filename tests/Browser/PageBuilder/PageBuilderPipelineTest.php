@@ -1,8 +1,17 @@
 <?php
 
+use App\ComponentSurface;
 use App\Models\ComponentDefinition;
-use App\Models\Page;
 use App\Models\User;
+
+function browserTestImagePath(): string
+{
+    $path = realpath(base_path('vendor/livewire/livewire/src/Features/SupportFileUploads/browser_test_image.png'));
+
+    expect($path)->not->toBeFalse();
+
+    return $path;
+}
 
 beforeEach(function () {
     $this->artisan('migrate:fresh', ['--force' => true]);
@@ -23,85 +32,83 @@ beforeEach(function () {
         'name' => 'FAQ Component',
         'handle' => 'faq_component',
     ]);
+
+    ComponentDefinition::factory()->create([
+        'name' => 'Navigation Menu Component',
+        'handle' => 'navigation_menu_component',
+        'surface' => ComponentSurface::Navigation,
+        'view' => 'page-builder.components.faq',
+        'props' => [
+            [
+                'name' => 'label',
+                'label' => 'Label',
+                'type' => 'text',
+                'group' => 'Content',
+            ],
+        ],
+        'default_values' => [
+            'label' => 'Products',
+        ],
+    ]);
 });
 
-it('loads database-defined components into the admin page builder with default values', function () {
+it('builds a page through the custom editor shell and publishes the public page', function () {
     $page = visit('/admin/pages/create')
         ->wait(1)
-        ->assertSee('Create Page')
-        ->assertPresent('@page-preview-panel')
-        ->assertPresent('@page-preview-frame')
-        ->press('Add block')
-        ->click('Hero Banner Component')
-        ->assertValue('@builder-field-headline-input', 'Launch your next campaign faster')
-        ->assertValue('@builder-field-subheadline-input', 'Compose merchant-facing sections from reusable prop definitions.')
-        ->press('Add block')
-        ->click('FAQ Component')
-        ->assertValue('@builder-field-section_title-input', 'Shipping help')
-        ->assertValue('@builder-field-intro-input', 'Everything about delivery and returns.')
-        ->assertValue('@builder-field-items-item-question-input', 'When do orders ship?')
+        ->assertPresent('@page-builder-shell')
+        ->assertSee('Meta CMS Editor')
+        ->fill('@page-title-input', 'Summer launch')
+        ->fill('@page-slug-input', 'summer-launch')
+        ->assertDontSee('Navigation Menu Component')
+        ->click('@page-builder-add-component-hero-banner-component')
+        ->wait(1)
+        ->assertSee('Launch your next campaign faster')
+        ->click('@page-builder-edit-block')
+        ->wait(1)
+        ->fill('@editor-field-headline-input', 'Summer launch')
+        ->fill('@editor-field-subheadline-input', 'Launch editor-managed campaigns with a direct render canvas.')
+        ->fill('@editor-field-cta_text-input', 'Shop now')
+        ->fill('@editor-field-cta_url-input', '/summer-launch')
+        ->attach('@editor-field-image-file', browserTestImagePath())
+        ->wait(1)
+        ->press('Apply changes')
+        ->wait(1)
+        ->assertSee('Summer launch')
+        ->click('@page-builder-add-component-faq-component')
+        ->wait(1)
+        ->assertSee('Shipping help')
+        ->click('@page-builder-edit-block')
+        ->wait(1)
+        ->fill('@editor-field-section_title-input', 'Shipping help')
+        ->fill('@editor-field-intro-input', 'Everything about delivery and returns.')
+        ->fill('@editor-field-items-item-question-input', 'When do orders ship?')
+        ->fill('@editor-field-items-item-answer-input', 'Orders placed before 16:00 ship the same day.')
+        ->press('Apply changes')
+        ->wait(1)
+        ->assertSee('When do orders ship?')
+        ->click('@page-builder-publish')
+        ->wait(1)
         ->assertNoJavaScriptErrors()
         ->assertNoConsoleLogs();
 
-    $page->fill('@builder-field-headline-input', 'Summer launch')
-        ->assertValue('@builder-field-headline-input', 'Summer launch')
-        ->assertNoJavaScriptErrors();
-});
-
-it('renders a published page that uses database-defined component payloads', function () {
-    $heroDefinition = ComponentDefinition::query()->where('handle', 'hero_banner_component')->firstOrFail();
-    $faqDefinition = ComponentDefinition::query()->where('handle', 'faq_component')->firstOrFail();
-
-    $page = Page::factory()->published()->create([
-        'title' => 'Summer launch',
-        'slug' => 'summer-launch',
-        'blocks' => [
-            [
-                'type' => $heroDefinition->getBlockType(),
-                'variant' => 'default',
-                'version' => 1,
-                'component_definition_id' => $heroDefinition->getKey(),
-                'component_handle' => $heroDefinition->handle,
-                'component_name' => $heroDefinition->name,
-                'view' => $heroDefinition->view,
-                'props' => [
-                    'headline' => 'Summer launch',
-                    'subheadline' => 'Launch editor-managed campaigns with a single payload contract.',
-                    'cta_text' => 'Shop now',
-                    'cta_url' => '/summer-launch',
-                    'text_align' => 'left',
-                    'image' => null,
-                    'image_alt' => 'Summer launch hero',
-                ],
-            ],
-            [
-                'type' => $faqDefinition->getBlockType(),
-                'variant' => 'default',
-                'version' => 1,
-                'component_definition_id' => $faqDefinition->getKey(),
-                'component_handle' => $faqDefinition->handle,
-                'component_name' => $faqDefinition->name,
-                'view' => $faqDefinition->view,
-                'props' => [
-                    'section_title' => 'Shipping help',
-                    'intro' => 'Everything about delivery and returns.',
-                    'items' => [
-                        [
-                            'question' => 'When do orders ship?',
-                            'answer' => 'Orders placed before 16:00 ship the same day.',
-                        ],
-                    ],
-                ],
-            ],
-        ],
-    ]);
-
-    visit("/pages/{$page->slug}")
+    visit('/pages/summer-launch')
         ->wait(1)
         ->assertSee('Summer launch')
         ->assertSee('Shop now')
         ->assertSee('Shipping help')
         ->assertSee('When do orders ship?')
+        ->assertNoJavaScriptErrors()
+        ->assertNoConsoleLogs();
+});
+
+it('loads the dashboard builder shell placeholder', function () {
+    visit('/admin/dashboard-builder')
+        ->wait(1)
+        ->assertPresent('@dashboard-builder-shell')
+        ->assertSee('Dashboard Builder')
+        ->assertSee('Revenue overview')
+        ->click('@dashboard-builder-add-widget-fulfillment-health')
+        ->assertSee('92%')
         ->assertNoJavaScriptErrors()
         ->assertNoConsoleLogs();
 });

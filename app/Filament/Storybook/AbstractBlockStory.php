@@ -2,6 +2,7 @@
 
 namespace App\Filament\Storybook;
 
+use App\ComponentSurface;
 use App\Filament\Storybook\Blocks\Contracts\BlockDataContract;
 use App\Filament\Storybook\Support\KnobSchemaCompiler;
 use Filament\Forms\Components\Builder\Block;
@@ -20,9 +21,14 @@ abstract class AbstractBlockStory extends AbstractKnobStory
         return 1;
     }
 
+    public function getSurface(): ComponentSurface
+    {
+        return ComponentSurface::Page;
+    }
+
     public function supportsCmsBuilder(): bool
     {
-        return true;
+        return $this->getSurface() === ComponentSurface::Page;
     }
 
     /**
@@ -54,13 +60,24 @@ abstract class AbstractBlockStory extends AbstractKnobStory
         return $this->title;
     }
 
+    public function getBuilderPreviewView(): ?string
+    {
+        return null;
+    }
+
     public function toBuilderBlock(KnobSchemaCompiler $compiler): Block
     {
-        return Block::make($this->getBlockType())
+        $block = Block::make($this->getBlockType())
             ->label(fn (?array $state): string => $this->getBuilderItemLabel($state))
             ->icon($this->icon)
             ->schema($compiler->compile($this->knobs(), live: true, testIdPrefix: 'builder-field'))
             ->columns(1);
+
+        if ($previewView = $this->getBuilderPreviewView()) {
+            $block->preview($previewView);
+        }
+
+        return $block;
     }
 
     public function getPreviewView(): string
