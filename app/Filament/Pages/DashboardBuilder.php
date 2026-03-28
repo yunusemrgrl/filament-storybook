@@ -9,6 +9,8 @@ use UnitEnum;
 
 class DashboardBuilder extends Page
 {
+    protected static bool $shouldRegisterNavigation = false;
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedChartBarSquare;
 
     protected static string|UnitEnum|null $navigationGroup = 'Builder';

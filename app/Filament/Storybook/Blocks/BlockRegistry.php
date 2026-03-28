@@ -6,6 +6,7 @@ use App\ComponentSurface;
 use App\Filament\Storybook\AbstractBlockStory;
 use App\Filament\Storybook\StoryRegistry;
 use App\Models\ComponentDefinition;
+use App\Support\PageBuilder\EditorSchemaExporter;
 use Illuminate\Support\Facades\Schema;
 
 class BlockRegistry
@@ -54,6 +55,20 @@ class BlockRegistry
     public static function cms(): array
     {
         return static::cmsForSurface(ComponentSurface::Page);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public static function schemasForSurface(ComponentSurface|string $surface): array
+    {
+        /** @var EditorSchemaExporter $exporter */
+        $exporter = app(EditorSchemaExporter::class);
+
+        return array_values(array_map(
+            static fn (AbstractBlockStory $block): array => $exporter->exportBlock($block),
+            static::forSurface($surface),
+        ));
     }
 
     /**

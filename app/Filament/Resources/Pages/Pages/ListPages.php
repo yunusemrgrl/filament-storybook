@@ -3,7 +3,7 @@
 namespace App\Filament\Resources\Pages\Pages;
 
 use App\Filament\Resources\Pages\PageResource;
-use Filament\Actions\CreateAction;
+use Filament\Actions\Action;
 use Filament\Resources\Pages\ListRecords;
 
 class ListPages extends ListRecords
@@ -13,7 +13,10 @@ class ListPages extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            CreateAction::make(),
+            Action::make('openBuilder')
+                ->label('Create page')
+                ->icon('heroicon-o-plus')
+                ->url(route('admin.pages.builder.create')),
         ];
     }
 }

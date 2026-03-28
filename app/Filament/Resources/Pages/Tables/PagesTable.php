@@ -2,9 +2,10 @@
 
 namespace App\Filament\Resources\Pages\Tables;
 
+use App\Models\Page;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\EditAction;
 use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -34,7 +35,10 @@ class PagesTable
                 //
             ])
             ->recordActions([
-                EditAction::make(),
+                Action::make('openBuilder')
+                    ->label('Open builder')
+                    ->icon('heroicon-o-pencil-square')
+                    ->url(fn (Page $record): string => route('admin.pages.builder.edit', $record)),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
