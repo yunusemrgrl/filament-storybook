@@ -2,3 +2,41 @@
 
 @source '../../../../app/Filament/**/*';
 @source '../../../../resources/views/filament/**/*';
+
+@layer components {
+    .dark [data-testid='page-builder-shell'] .text-slate-950,
+    .dark [data-testid='page-builder-shell'] .text-slate-900,
+    .dark [data-testid='dashboard-builder-shell'] .text-slate-950,
+    .dark [data-testid='dashboard-builder-shell'] .text-slate-900 {
+        color: rgb(15 23 42) !important;
+    }
+
+    .dark [data-testid='page-builder-shell'] .text-slate-600,
+    .dark [data-testid='dashboard-builder-shell'] .text-slate-600 {
+        color: rgb(71 85 105) !important;
+    }
+
+    .dark [data-testid='page-builder-shell'] .text-slate-500,
+    .dark [data-testid='dashboard-builder-shell'] .text-slate-500 {
+        color: rgb(100 116 139) !important;
+    }
+
+    .dark [data-testid='page-builder-shell'] .text-slate-400,
+    .dark [data-testid='dashboard-builder-shell'] .text-slate-400 {
+        color: rgb(148 163 184) !important;
+    }
+
+    .dark [data-testid='page-builder-shell'] .fi-fo-field-label-content,
+    .dark [data-testid='page-builder-shell'] .fi-input-wrp-label,
+    .dark [data-testid='page-builder-shell'] input.fi-input,
+    .dark [data-testid='page-builder-shell'] textarea.fi-input,
+    .dark [data-testid='page-builder-shell'] select.fi-select-input,
+    .dark [data-testid='page-builder-shell'] .fi-select-input-btn {
+        color: rgb(15 23 42) !important;
+    }
+
+    .dark [data-testid='page-builder-shell'] input.fi-input::placeholder,
+    .dark [data-testid='page-builder-shell'] textarea.fi-input::placeholder {
+        color: rgb(148 163 184) !important;
+    }
+}

@@ -70,7 +70,7 @@
                             @endif
                         </div>
 
-                        <div class="pointer-events-none bg-white p-4 lg:p-6">
+                        <div class="public-page pointer-events-none bg-white p-4 lg:p-6">
                             @include($canvasBlock['resolved']->frontendView(), $canvasBlock['resolved']->frontendData())
                         </div>
                     </article>
