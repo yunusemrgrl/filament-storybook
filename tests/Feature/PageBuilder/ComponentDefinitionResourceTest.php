@@ -26,58 +26,54 @@ it('creates a component definition with prop schema and default values', functio
 
     Livewire::test(CreateComponentDefinition::class)
         ->fillForm([
-            'name' => 'Hero Banner Component',
-            'handle' => 'hero_banner_component',
+            'name' => 'Technical Text Column',
+            'handle' => 'filament.table.text_column.custom',
             'surface' => ComponentSurface::Page->value,
-            'category' => 'Marketing',
-            'view' => 'page-builder.components.hero-banner',
+            'category' => 'Tables',
+            'view' => 'page-builder.components.filament-primitive',
             'is_active' => true,
-            'description' => 'Definition-backed hero banner.',
+            'description' => 'Custom technical text column definition.',
             'props' => [
                 [
-                    'name' => 'headline',
-                    'label' => 'Headline',
+                    'name' => 'column_name',
+                    'label' => 'columnName',
                     'type' => 'text',
-                    'group' => 'Content',
+                    'group' => 'Data Source',
                     'required' => true,
                 ],
                 [
-                    'name' => 'cta_text',
-                    'label' => 'CTA text',
+                    'name' => 'label',
+                    'label' => 'label',
                     'type' => 'text',
-                    'group' => 'Content',
+                    'group' => 'Appearance',
                 ],
                 [
-                    'name' => 'text_align',
-                    'label' => 'Text align',
-                    'type' => 'select',
-                    'group' => 'Design',
-                    'options' => [
-                        ['value' => 'left', 'label' => 'Left'],
-                        ['value' => 'center', 'label' => 'Center'],
-                    ],
+                    'name' => 'is_searchable',
+                    'label' => 'isSearchable',
+                    'type' => 'boolean',
+                    'group' => 'Validation',
                 ],
             ],
         ])
         ->set('data.default_values', [
-            'headline' => 'Launch faster',
-            'cta_text' => 'Explore',
-            'text_align' => 'left',
+            'column_name' => 'email',
+            'label' => 'Email',
+            'is_searchable' => true,
         ])
         ->call('create')
         ->assertHasNoFormErrors();
 
     $definition = ComponentDefinition::query()
-        ->where('handle', 'hero_banner_component')
+        ->where('handle', 'filament.table.text_column.custom')
         ->firstOrFail();
 
-    expect($definition->name)->toBe('Hero Banner Component')
+    expect($definition->name)->toBe('Technical Text Column')
         ->and($definition->getSurface())->toBe(ComponentSurface::Page)
         ->and($definition->propsCollection()->count())->toBe(3)
         ->and($definition->getDefaultValues())->toBe([
-            'headline' => 'Launch faster',
-            'cta_text' => 'Explore',
-            'text_align' => 'left',
+            'column_name' => 'email',
+            'label' => 'Email',
+            'is_searchable' => true,
         ]);
 });
 
@@ -86,29 +82,56 @@ it('hydrates and edits an existing component definition', function () {
         'password' => 'password',
     ]);
 
-    $definition = ComponentDefinition::factory()->heroBanner()->create([
-        'name' => 'Hero Banner Component',
-        'handle' => 'hero_banner_component',
+    $definition = ComponentDefinition::factory()->create([
+        'name' => 'Technical Table Widget',
+        'handle' => 'filament.widget.table_widget.custom',
+        'surface' => ComponentSurface::Page,
+        'category' => 'Widgets',
+        'view' => 'page-builder.components.filament-primitive',
+        'description' => 'Schema-driven table widget definition.',
+        'props' => [
+            [
+                'name' => 'widget_key',
+                'label' => 'widgetKey',
+                'type' => 'text',
+                'group' => 'Data Source',
+                'required' => true,
+            ],
+            [
+                'name' => 'query_scope',
+                'label' => 'queryScope',
+                'type' => 'text',
+                'group' => 'Data Source',
+            ],
+            [
+                'name' => 'pagination_size',
+                'label' => 'paginationSize',
+                'type' => 'number',
+                'group' => 'Appearance',
+            ],
+        ],
+        'default_values' => [
+            'widget_key' => 'user_registry',
+            'query_scope' => 'latest()',
+            'pagination_size' => 25,
+        ],
     ]);
 
     $this->actingAs($user);
 
     Livewire::test(EditComponentDefinition::class, ['record' => $definition->getRouteKey()])
         ->assertFormSet([
-            'name' => 'Hero Banner Component',
-            'handle' => 'hero_banner_component',
+            'name' => 'Technical Table Widget',
+            'handle' => 'filament.widget.table_widget.custom',
             'surface' => ComponentSurface::Page->value,
-            'view' => 'page-builder.components.hero-banner',
+            'view' => 'page-builder.components.filament-primitive',
         ])
         ->fillForm([
-            'name' => 'Hero Banner Plus',
+            'name' => 'Technical Table Widget Plus',
             'default_values' => [
-                'headline' => 'Scale campaigns faster',
-                'subheadline' => 'A meta-builder now controls this schema.',
-                'cta_text' => 'See how',
-                'cta_url' => '/builder',
-                'text_align' => 'center',
-                'image_alt' => 'Updated hero visual',
+                'widget_key' => 'audit_registry',
+                'query_scope' => 'whereNotNull("email_verified_at")',
+                'pagination_size' => 50,
             ],
         ])
         ->call('save')
@@ -116,7 +139,7 @@ it('hydrates and edits an existing component definition', function () {
 
     $definition->refresh();
 
-    expect($definition->name)->toBe('Hero Banner Plus')
-        ->and($definition->getDefaultValues()['headline'])->toBe('Scale campaigns faster')
-        ->and($definition->getDefaultValues()['text_align'])->toBe('center');
+    expect($definition->name)->toBe('Technical Table Widget Plus')
+        ->and($definition->getDefaultValues()['widget_key'])->toBe('audit_registry')
+        ->and($definition->getDefaultValues()['pagination_size'])->toBe(50);
 });

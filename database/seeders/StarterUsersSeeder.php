@@ -15,25 +15,7 @@ class StarterUsersSeeder extends Seeder
         User::query()->updateOrCreate(
             ['email' => 'admin@example.com'],
             [
-                'name' => 'Admin User',
-                'password' => 'password',
-                'email_verified_at' => now(),
-            ],
-        );
-
-        User::query()->updateOrCreate(
-            ['email' => 'editor@example.com'],
-            [
-                'name' => 'Content Editor',
-                'password' => 'password',
-                'email_verified_at' => now(),
-            ],
-        );
-
-        User::query()->updateOrCreate(
-            ['email' => 'test@example.com'],
-            [
-                'name' => 'Test User',
+                'name' => 'Struktura Administrator',
                 'password' => 'password',
                 'email_verified_at' => now(),
             ],

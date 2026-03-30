@@ -39,4 +39,38 @@
     .dark [data-testid='page-builder-shell'] textarea.fi-input::placeholder {
         color: rgb(148 163 184) !important;
     }
+
+    .dark [data-testid='page-builder-canvas'] .public-page {
+        color-scheme: light;
+        color: #111827 !important;
+    }
+
+    .dark [data-testid='page-builder-canvas'] .public-page .sb-block-hero__headline,
+    .dark [data-testid='page-builder-canvas'] .public-page .sb-block-grid__headline,
+    .dark [data-testid='page-builder-canvas'] .public-page .sb-block-faq__title,
+    .dark [data-testid='page-builder-canvas'] .public-page .sb-block-grid__name,
+    .dark [data-testid='page-builder-canvas'] .public-page .sb-block-faq__question {
+        color: #111827 !important;
+    }
+
+    .dark [data-testid='page-builder-canvas'] .public-page .sb-block-hero__subheadline,
+    .dark [data-testid='page-builder-canvas'] .public-page .sb-block-grid__subheadline,
+    .dark [data-testid='page-builder-canvas'] .public-page .sb-block-faq__intro,
+    .dark [data-testid='page-builder-canvas'] .public-page .sb-block-faq__answer,
+    .dark [data-testid='page-builder-canvas'] .public-page .sb-block-grid__price,
+    .dark [data-testid='page-builder-canvas'] .public-page .sb-block-hero__image-placeholder {
+        color: #475569 !important;
+    }
+
+    .dark [data-testid='page-builder-canvas'] .public-page .sb-block-hero__eyebrow,
+    .dark [data-testid='page-builder-canvas'] .public-page .sb-block-faq__eyebrow {
+        color: #7c3aed !important;
+        background: rgba(124, 58, 237, 0.08) !important;
+        border-color: rgba(124, 58, 237, 0.18) !important;
+    }
+
+    .dark [data-testid='page-builder-canvas'] .public-page .sb-block-hero__cta {
+        background: #7c3aed !important;
+        color: #fff !important;
+    }
 }

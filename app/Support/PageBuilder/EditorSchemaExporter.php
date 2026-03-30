@@ -7,10 +7,15 @@ use App\Filament\Storybook\AbstractBlockStory;
 use App\Filament\Storybook\Blocks\BlockRegistry;
 use App\Filament\Storybook\Blocks\DatabaseComponentBlock;
 use App\Filament\Storybook\KnobDefinition;
+use App\StarterKits\StrukturaEngine\Services\NodeRuleMatrix;
 use Illuminate\Support\Facades\Storage;
 
 class EditorSchemaExporter
 {
+    public function __construct(
+        private readonly NodeRuleMatrix $nodeRuleMatrix,
+    ) {}
+
     /**
      * @return array<int, array<string, mixed>>
      */
@@ -27,16 +32,25 @@ class EditorSchemaExporter
      */
     public function exportBlock(AbstractBlockStory $block): array
     {
+        $defaults = $this->defaultValuesForBlock($block);
+        $source = $block instanceof DatabaseComponentBlock ? 'definition' : 'system';
+
         return [
             'type' => $block->getBlockType(),
+            'slug' => $this->schemaSlug($block, $source),
             'title' => $block->title,
             'description' => $block->description,
             'group' => $block->group,
             'icon' => $block->icon,
             'view' => $block->getFrontendView(),
-            'source' => $block instanceof DatabaseComponentBlock ? 'definition' : 'system',
+            'surface' => $block->getSurface()->value,
+            'source' => $source,
             'variant' => 'default',
-            'defaults' => $this->defaultValuesForBlock($block),
+            'defaults' => $defaults,
+            'dataSource' => $this->extractDataSource($defaults),
+            'family' => $this->nodeRuleMatrix->familyForType($block->getBlockType()),
+            'acceptsChildren' => $this->nodeRuleMatrix->acceptsChildren($block->getBlockType()),
+            'allowedChildFamilies' => $this->nodeRuleMatrix->allowedChildFamilies($block->getBlockType()),
             'fields' => array_map(
                 fn (KnobDefinition $definition): array => $this->exportField($definition),
                 $block->knobs(),
@@ -221,5 +235,35 @@ class EditorSchemaExporter
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    private function schemaSlug(AbstractBlockStory $block, string $source): string
+    {
+        if ($source === 'definition') {
+            return str($block->getBlockType())
+                ->after('component-')
+                ->value();
+        }
+
+        return $block->getBlockType();
+    }
+
+    /**
+     * @param  array<string, mixed>  $defaults
+     * @return array<string, string|null>
+     */
+    private function extractDataSource(array $defaults): array
+    {
+        $path = $defaults['payload_path'] ?? $defaults['column_name'] ?? $defaults['widget_key'] ?? $defaults['schema_key'] ?? null;
+        $hydration = $defaults['hydration_logic'] ?? $defaults['query_scope'] ?? null;
+
+        return [
+            'model' => is_string($defaults['data_source_model'] ?? null) ? $defaults['data_source_model'] : null,
+            'path' => is_string($path) ? $path : null,
+            'relationship' => is_string($defaults['relationship'] ?? null) && trim((string) $defaults['relationship']) !== ''
+                ? (string) $defaults['relationship']
+                : null,
+            'hydration' => is_string($hydration) ? $hydration : null,
+        ];
     }
 }

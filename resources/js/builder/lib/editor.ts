@@ -1,5 +1,5 @@
-import type { AvailableBlock, EditorBlock, EditorField, FileValue } from '../types';
 import { cloneValue, makeId } from './utils';
+import type { AvailableBlock, EditorField, EditorNode, FileValue } from '../types';
 
 export function createEmptyValue(field: EditorField): unknown {
     switch (field.type) {
@@ -26,18 +26,28 @@ export function createRepeaterItem(fields: EditorField[]): Record<string, unknow
     }, {});
 }
 
-export function createBlockFromDefinition(definition: AvailableBlock): EditorBlock {
+export function createNodeFromDefinition(definition: AvailableBlock): EditorNode {
     return {
         id: makeId(),
         type: definition.type,
+        slug: definition.slug,
         label: definition.title,
         description: definition.description,
         group: definition.group,
         icon: definition.icon ?? undefined,
         view: definition.view,
         source: definition.source,
+        surface: definition.surface,
         variant: definition.variant ?? 'default',
-        data: cloneValue(definition.defaults),
+        family: definition.family,
+        acceptsChildren: definition.acceptsChildren,
+        allowedChildFamilies: definition.allowedChildFamilies,
+        props: cloneValue(definition.defaults),
+        children: [],
+        computed_logic: null,
+        meta: {
+            view: definition.view,
+        },
     };
 }
 
@@ -126,4 +136,143 @@ export function readableFieldCount(fields: EditorField[]): number {
 
         return count + 1;
     }, 0);
+}
+
+export function readableNodeCount(nodes: EditorNode[]): number {
+    return nodes.reduce((count, node) => count + 1 + readableNodeCount(node.children), 0);
+}
+
+export function findNode(nodes: EditorNode[], nodeId: string): EditorNode | null {
+    for (const node of nodes) {
+        if (node.id === nodeId) {
+            return node;
+        }
+
+        const child = findNode(node.children, nodeId);
+
+        if (child) {
+            return child;
+        }
+    }
+
+    return null;
+}
+
+export function updateNode(nodes: EditorNode[], nodeId: string, updater: (node: EditorNode) => EditorNode): EditorNode[] {
+    return nodes.map((node) => {
+        if (node.id === nodeId) {
+            return updater(node);
+        }
+
+        if (node.children.length === 0) {
+            return node;
+        }
+
+        return {
+            ...node,
+            children: updateNode(node.children, nodeId, updater),
+        };
+    });
+}
+
+export function insertNode(nodes: EditorNode[], node: EditorNode, parentId?: string | null): EditorNode[] {
+    if (!parentId) {
+        return [...nodes, cloneValue(node)];
+    }
+
+    return updateNode(nodes, parentId, (parent) => ({
+        ...parent,
+        children: [...parent.children, cloneValue(node)],
+    }));
+}
+
+export function removeNode(nodes: EditorNode[], nodeId: string): EditorNode[] {
+    return nodes
+        .filter((node) => node.id !== nodeId)
+        .map((node) => ({
+            ...node,
+            children: removeNode(node.children, nodeId),
+        }));
+}
+
+export function duplicateNode(nodes: EditorNode[], nodeId: string): { nodes: EditorNode[]; duplicateId: string | null } {
+    const node = findNode(nodes, nodeId);
+
+    if (!node) {
+        return { nodes, duplicateId: null };
+    }
+
+    const duplicate = cloneNodeTree(node);
+    duplicate.id = makeId();
+    duplicate.label = `${duplicate.label} copy`;
+
+    return {
+        nodes: insertDuplicateSibling(nodes, nodeId, duplicate),
+        duplicateId: duplicate.id,
+    };
+}
+
+export function moveNode(nodes: EditorNode[], nodeId: string, direction: 'up' | 'down'): EditorNode[] {
+    const topLevelIndex = nodes.findIndex((node) => node.id === nodeId);
+
+    if (topLevelIndex !== -1) {
+        const targetIndex = direction === 'up' ? topLevelIndex - 1 : topLevelIndex + 1;
+
+        if (targetIndex < 0 || targetIndex >= nodes.length) {
+            return nodes;
+        }
+
+        const reordered = cloneValue(nodes);
+        const [node] = reordered.splice(topLevelIndex, 1);
+        reordered.splice(targetIndex, 0, node);
+
+        return reordered;
+    }
+
+    return nodes.map((node) => ({
+        ...node,
+        children: moveNode(node.children, nodeId, direction),
+    }));
+}
+
+export function reorderRootNodes(nodes: EditorNode[], activeId: string, overId: string): EditorNode[] {
+    const activeIndex = nodes.findIndex((node) => node.id === activeId);
+    const overIndex = nodes.findIndex((node) => node.id === overId);
+
+    if (activeIndex === -1 || overIndex === -1 || activeIndex === overIndex) {
+        return nodes;
+    }
+
+    const reordered = cloneValue(nodes);
+    const [node] = reordered.splice(activeIndex, 1);
+    reordered.splice(overIndex, 0, node);
+
+    return reordered;
+}
+
+export function flattenNodes(nodes: EditorNode[]): EditorNode[] {
+    return nodes.flatMap((node) => [node, ...flattenNodes(node.children)]);
+}
+
+function cloneNodeTree(node: EditorNode): EditorNode {
+    return {
+        ...cloneValue(node),
+        children: node.children.map((child) => cloneNodeTree(child)),
+    };
+}
+
+function insertDuplicateSibling(nodes: EditorNode[], targetId: string, duplicate: EditorNode): EditorNode[] {
+    const targetIndex = nodes.findIndex((node) => node.id === targetId);
+
+    if (targetIndex !== -1) {
+        const cloned = cloneValue(nodes);
+        cloned.splice(targetIndex + 1, 0, duplicate);
+
+        return cloned;
+    }
+
+    return nodes.map((node) => ({
+        ...node,
+        children: insertDuplicateSibling(node.children, targetId, duplicate),
+    }));
 }

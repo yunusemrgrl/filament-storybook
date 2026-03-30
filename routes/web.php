@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\DashboardBuilderController;
+use App\Http\Controllers\Admin\NavigationBuilderController;
 use App\Http\Controllers\Admin\PageBuilderController;
 use App\Http\Controllers\Admin\PageBuilderUploadController;
 use App\Http\Controllers\PagePreviewController;
@@ -29,6 +30,10 @@ Route::prefix('admin')
 
         Route::get('/dashboard/builder', DashboardBuilderController::class)
             ->name('dashboard.builder');
+        Route::get('/navigation/builder', [NavigationBuilderController::class, 'edit'])
+            ->name('navigation.builder.edit');
+        Route::put('/navigation/builder', [NavigationBuilderController::class, 'update'])
+            ->name('navigation.builder.update');
     });
 
 Route::middleware('auth')

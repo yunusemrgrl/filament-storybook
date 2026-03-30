@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Filament\Storybook\Blocks\BlockCollection;
+use App\ComponentSurface;
+use App\StarterKits\StrukturaEngine\Services\EngineCompilerRuntime;
 use Illuminate\Contracts\View\View;
 
 class PagePreviewController extends Controller
 {
-    public function __invoke(string $token): View
+    public function __invoke(string $token, EngineCompilerRuntime $compilerRuntime): View
     {
         $preview = session()->get("page-builder.preview.{$token}");
 
@@ -15,21 +16,21 @@ class PagePreviewController extends Controller
             $preview = [];
         }
 
-        $blocks = $preview['blocks'] ?? [];
+        $nodes = $preview['nodes'] ?? $preview['blocks'] ?? [];
 
-        if (! is_array($blocks)) {
-            $blocks = [];
+        if (! is_array($nodes)) {
+            $nodes = [];
         }
 
         try {
-            $resolvedBlocks = BlockCollection::fromArray($blocks)->resolve();
+            $compiledNodes = $compilerRuntime->compile(ComponentSurface::Page, $nodes, 'preview');
         } catch (\Throwable) {
-            $resolvedBlocks = [];
+            $compiledNodes = [];
         }
 
         return view('pages.preview', [
             'title' => is_string($preview['title'] ?? null) ? $preview['title'] : 'Untitled page',
-            'resolvedBlocks' => $resolvedBlocks,
+            'compiledNodes' => $compiledNodes,
         ]);
     }
 }

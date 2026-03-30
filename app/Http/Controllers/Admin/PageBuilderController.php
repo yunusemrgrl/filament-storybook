@@ -8,8 +8,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\SavePageBuilderRequest;
 use App\Models\Page;
 use App\PageStatus;
+use App\StarterKits\StrukturaEngine\Models\ModelDescriptor;
+use App\StarterKits\StrukturaEngine\Services\ModelIntrospector;
+use App\StarterKits\StrukturaEngine\Services\ModelRegistry;
 use App\Support\PageBuilder\EditorStateMapper;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -17,6 +21,8 @@ class PageBuilderController extends Controller
 {
     public function __construct(
         private readonly EditorStateMapper $editorStateMapper,
+        private readonly ModelRegistry $modelRegistry,
+        private readonly ModelIntrospector $modelIntrospector,
     ) {}
 
     public function create(): Response
@@ -37,7 +43,7 @@ class PageBuilderController extends Controller
             'status' => $request->string('status')->value(),
             'blocks' => $this->editorStateMapper->toPersistedPayload(
                 ComponentSurface::Page,
-                $request->validated('blocks', []),
+                $request->input('nodes', []),
             ),
         ]);
 
@@ -52,7 +58,7 @@ class PageBuilderController extends Controller
             'status' => $request->string('status')->value(),
             'blocks' => $this->editorStateMapper->toPersistedPayload(
                 ComponentSurface::Page,
-                $request->validated('blocks', []),
+                $request->input('nodes', []),
             ),
         ]);
 
@@ -71,12 +77,16 @@ class PageBuilderController extends Controller
                 'title' => $page?->title ?? '',
                 'slug' => $page?->slug ?? '',
                 'status' => ($page?->status ?? PageStatus::Draft)->value,
-                'blocks' => $this->editorStateMapper->toEditorBlocks(
+                'nodes' => $this->editorStateMapper->toEditorNodes(
                     ComponentSurface::Page,
                     $page?->blocks ?? [],
                 ),
             ],
-            'availableBlocks' => BlockRegistry::schemasForSurface(ComponentSurface::Page),
+            'definitions' => array_values(array_filter(
+                BlockRegistry::schemasForSurface(ComponentSurface::Page),
+                static fn (array $schema): bool => ($schema['source'] ?? null) === 'definition',
+            )),
+            'dataBinding' => $this->dataBindingProps(ComponentSurface::Page),
             'routes' => [
                 'index' => route('filament.admin.resources.pages.index'),
                 'store' => route('admin.pages.builder.store'),
@@ -86,6 +96,62 @@ class PageBuilderController extends Controller
                     ? route('pages.show', $page->slug)
                     : null,
             ],
+        ];
+    }
+
+    /**
+     * @return array{
+     *     models: array<int, array<string, mixed>>,
+     *     relationshipsByModel: array<string, array<int, array<string, mixed>>>,
+     *     columnsByModel: array<string, array<int, array<string, mixed>>>
+     * }
+     */
+    private function dataBindingProps(ComponentSurface $surface): array
+    {
+        $models = $this->modelRegistry->models($surface);
+        $descriptors = collect($models)
+            ->mapWithKeys(function (array $model): array {
+                $descriptor = $this->modelIntrospector->describe($model['class']);
+
+                return [$model['class'] => $descriptor];
+            });
+
+        $relatedModels = $descriptors
+            ->flatMap(function ($descriptor): array {
+                return array_map(
+                    static fn (array $relationship): string => $relationship['relatedModel'],
+                    $descriptor->toArray()['relationships'],
+                );
+            })
+            ->filter(fn (string $modelClass): bool => ! $descriptors->has($modelClass) && $this->modelRegistry->isAllowed($modelClass))
+            ->unique()
+            ->values();
+
+        /** @var Collection<string, ModelDescriptor> $allDescriptors */
+        $allDescriptors = $descriptors;
+
+        foreach ($relatedModels as $relatedModel) {
+            $allDescriptors->put($relatedModel, $this->modelIntrospector->describe($relatedModel));
+        }
+
+        return [
+            'models' => $models,
+            'relationshipsByModel' => $descriptors
+                ->mapWithKeys(static fn ($descriptor, string $modelClass): array => [
+                    $modelClass => array_map(
+                        static fn ($relationship): array => $relationship->toArray(),
+                        $descriptor->relationships,
+                    ),
+                ])
+                ->all(),
+            'columnsByModel' => $allDescriptors
+                ->mapWithKeys(static fn ($descriptor, string $modelClass): array => [
+                    $modelClass => array_map(
+                        static fn ($column): array => $column->toArray(),
+                        $descriptor->columns,
+                    ),
+                ])
+                ->all(),
         ];
     }
 }

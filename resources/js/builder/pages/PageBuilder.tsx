@@ -1,82 +1,93 @@
 import { closestCenter, DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Link, router, usePage } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import {
     ArrowDown,
     ArrowUp,
-    Copy,
+    Braces,
+    Database,
     ExternalLink,
+    GitBranch,
     GripVertical,
-    LayoutPanelLeft,
-    PencilLine,
+    Layers3,
     Plus,
+    Save,
     Search,
-    Sparkles,
+    ShieldCheck,
     Trash2,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, type ReactNode } from 'react';
 
-import { BlockPreviewRenderer } from '../components/page-builder/BlockPreviewRenderer';
+import { CmsAppShell, ShellActionButton } from '../components/layout/CmsAppShell';
+import { WorkspacePanel } from '../components/layout/WorkspacePanel';
 import { DynamicFieldRenderer } from '../components/page-builder/DynamicFieldRenderer';
-import { Badge } from '../components/ui/badge';
-import { Button } from '../components/ui/button';
-import { Card } from '../components/ui/card';
-import { Dialog } from '../components/ui/dialog';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
-import { ScrollArea } from '../components/ui/scroll-area';
-import { Select } from '../components/ui/select';
-import { Separator } from '../components/ui/separator';
-import { createBlockFromDefinition, readableFieldCount } from '../lib/editor';
+import { createNodeFromDefinition, findNode, flattenNodes, readableFieldCount, readableNodeCount } from '../lib/editor';
 import { cn, toTestIdToken } from '../lib/utils';
 import { usePageBuilderStore } from '../store/page-builder-store';
-import type { AvailableBlock, EditorBlock, PageBuilderProps } from '../types';
+import type { AvailableBlock, EditorNode, PageBuilderProps, SharedPageProps } from '../types';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const statusOptions = [
     { value: 'draft', label: 'Draft' },
     { value: 'published', label: 'Published' },
 ];
 
-type PersistedEditorBlock = Pick<EditorBlock, 'id' | 'type' | 'source' | 'variant' | 'data'>;
+const inspectorTabConfig = [
+    { value: 'data-source', label: 'Data Source', groups: ['Data Source', 'Structure'] },
+    { value: 'validation', label: 'Validation (Rules)', groups: ['Validation'] },
+    { value: 'appearance', label: 'Appearance', groups: ['Appearance', 'Actions'] },
+] as const;
+
+type PersistedEditorNode = {
+    id: string;
+    type: string;
+    label: string;
+    source: 'system' | 'definition';
+    surface: 'page' | 'navigation' | 'dashboard';
+    variant?: string;
+    props: Record<string, unknown>;
+    children: PersistedEditorNode[];
+    computed_logic?: Record<string, unknown> | null;
+    meta?: Record<string, unknown>;
+};
 
 export default function PageBuilder() {
-    const { page, availableBlocks, routes } = usePage<PageBuilderProps>().props;
+    const { page, definitions, dataBinding, routes } = usePage<PageBuilderProps & SharedPageProps>().props;
     const {
         pageMeta,
-        blocks,
-        selectedBlockId,
+        nodes,
+        selectedNodeId,
         paletteSearch,
         isDirty,
         isSaving,
         initialize,
         setMetaField,
         setPaletteSearch,
-        addBlock,
-        selectBlock,
-        updateBlockData,
+        addNode,
+        selectNode,
+        updateNodeProps,
+        patchNodeProps,
         addRepeaterItem,
         removeRepeaterItem,
-        duplicateSelectedBlock,
-        removeSelectedBlock,
-        moveSelectedBlock,
-        reorderBlocks,
+        duplicateSelectedNode,
+        removeSelectedNode,
+        moveSelectedNode,
+        reorderRootNodes,
         setSaving,
         markClean,
     } = usePageBuilderStore();
 
-    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-
     const serverSnapshot = useMemo(
-        () =>
-            JSON.stringify({
-                id: page.id,
-                title: page.title,
-                slug: page.slug,
-                status: page.status,
-                blocks: page.blocks,
-            }),
-        [page.blocks, page.id, page.slug, page.status, page.title],
+        () => JSON.stringify({ id: page.id, title: page.title, slug: page.slug, status: page.status, nodes: page.nodes }),
+        [page.id, page.nodes, page.slug, page.status, page.title],
     );
 
     useEffect(() => {
@@ -84,21 +95,22 @@ export default function PageBuilder() {
     }, [initialize, serverSnapshot]);
 
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+    const definitionsByType = useMemo(() => new Map(definitions.map((definition) => [definition.type, definition])), [definitions]);
+    const flattenedNodes = useMemo(() => flattenNodes(nodes), [nodes]);
+    const selectedNode = useMemo(() => (selectedNodeId ? findNode(nodes, selectedNodeId) : null), [nodes, selectedNodeId]);
+    const selectedDefinition = selectedNode ? definitionsByType.get(selectedNode.type) ?? null : null;
+    const selectedDataSource = selectedNode ? dataSourceSummary(selectedNode.props) : null;
 
-    const selectedBlock = blocks.find((block) => block.id === selectedBlockId) ?? null;
-    const selectedDefinition = selectedBlock
-        ? availableBlocks.find((definition) => definition.type === selectedBlock.type) ?? null
-        : null;
+    const filteredDefinitions = definitions.filter((definition) =>
+        [definition.title, definition.slug, definition.description, definition.group]
+            .join(' ')
+            .toLowerCase()
+            .includes(paletteSearch.trim().toLowerCase()),
+    );
 
-    const filteredBlocks = availableBlocks.filter((block) => {
-        const haystack = [block.title, block.description, block.group, block.type].join(' ').toLowerCase();
-
-        return haystack.includes(paletteSearch.trim().toLowerCase());
-    });
-
-    const groupedPaletteBlocks = filteredBlocks.reduce<Record<string, AvailableBlock[]>>((groups, block) => {
-        groups[block.group] ??= [];
-        groups[block.group].push(block);
+    const groupedDefinitions = filteredDefinitions.reduce<Record<string, AvailableBlock[]>>((groups, definition) => {
+        groups[definition.group] ??= [];
+        groups[definition.group].push(definition);
 
         return groups;
     }, {});
@@ -108,29 +120,22 @@ export default function PageBuilder() {
             return;
         }
 
-        reorderBlocks(String(event.active.id), String(event.over.id));
+        reorderRootNodes(String(event.active.id), String(event.over.id));
     };
 
-    const buildPayload = (statusOverride?: 'draft' | 'published') => ({
-        title: pageMeta.title,
-        slug: pageMeta.slug,
-        status: statusOverride ?? pageMeta.status,
-        blocks: blocks.map<PersistedEditorBlock>((block) => ({
-            id: block.id,
-            type: block.type,
-            source: block.source,
-            variant: block.variant,
-            data: block.data,
-        })),
-    });
-
     const submit = (statusOverride?: 'draft' | 'published') => {
-        const payload = buildPayload(statusOverride);
         const requestOptions = {
             preserveScroll: true,
             onStart: () => setSaving(true),
             onSuccess: () => markClean(),
             onFinish: () => setSaving(false),
+        };
+
+        const payload = {
+            title: pageMeta.title,
+            slug: pageMeta.slug,
+            status: statusOverride ?? pageMeta.status,
+            nodes: nodes.map((node) => serializeNode(node)),
         };
 
         if (pageMeta.id && routes.update) {
@@ -143,409 +148,544 @@ export default function PageBuilder() {
     };
 
     return (
-        <div
-            data-testid="page-builder-shell"
-            className="min-h-screen bg-slate-950 text-white"
-        >
-            <header className="border-b border-white/10 bg-slate-950/95 backdrop-blur">
-                <div className="mx-auto flex max-w-[1800px] items-center gap-4 px-6 py-4 lg:px-8">
-                    <div className="flex min-w-0 flex-1 items-center gap-4">
-                        <Link href={routes.index} className="inline-flex items-center gap-2 text-sm font-medium text-slate-400 transition hover:text-white">
-                            <LayoutPanelLeft className="size-4" />
-                            Back to pages
-                        </Link>
-
-                        <Separator className="hidden h-6 w-px bg-white/10 md:block" />
-
-                        <div className="min-w-0">
-                            <div className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">Meta CMS Builder</div>
-                            <div className="truncate text-lg font-semibold text-white">
-                                {pageMeta.title.trim() !== '' ? pageMeta.title : 'Untitled page'}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                        {routes.publicPreview ? (
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                data-testid="page-builder-open-preview"
-                                onClick={() => window.open(routes.publicPreview ?? undefined, '_blank', 'noopener,noreferrer')}
-                            >
-                                <ExternalLink className="size-4" />
-                                Preview
-                            </Button>
-                        ) : null}
-
-                        <Button
-                            variant="success"
-                            size="sm"
-                            data-testid="page-builder-publish"
-                            disabled={isSaving}
-                            onClick={() => submit('published')}
+        <CmsAppShell
+            moduleLabel="Struktura Engine Studio"
+            title={pageMeta.title.trim() !== '' ? pageMeta.title : 'Untitled schema surface'}
+            description="Author Struktura DSL as a recursive node tree. Laravel validates the graph, then compiles it into Filament primitives at runtime."
+            breadcrumbs={[
+                { label: 'Pages', href: routes.index },
+                { label: pageMeta.title.trim() !== '' ? pageMeta.title : 'Untitled page' },
+                { label: 'Builder' },
+            ]}
+            status={{ label: pageMeta.status === 'published' ? 'Published' : 'Draft', tone: pageMeta.status }}
+            actions={
+                <>
+                    {routes.publicPreview ? (
+                        <ShellActionButton
+                            variant="outline"
+                            data-testid="page-builder-open-preview"
+                            onClick={() => window.open(routes.publicPreview ?? undefined, '_blank', 'noopener,noreferrer')}
                         >
-                            <Sparkles className="size-4" />
-                            Publish
-                        </Button>
-
-                        <Button
-                            size="sm"
-                            data-testid="page-builder-save"
-                            disabled={isSaving}
-                            onClick={() => submit()}
-                        >
-                            Save changes
-                        </Button>
+                            <ExternalLink data-icon="inline-start" />
+                            Runtime preview
+                        </ShellActionButton>
+                    ) : null}
+                    <ShellActionButton variant="outline" disabled>
+                        <Save data-icon="inline-start" />
+                        {isDirty ? 'Unsaved changes' : 'Synced'}
+                    </ShellActionButton>
+                    <ShellActionButton data-testid="page-builder-publish" disabled={isSaving} onClick={() => submit('published')}>
+                        Publish
+                    </ShellActionButton>
+                    <ShellActionButton variant="secondary" data-testid="page-builder-save" disabled={isSaving} onClick={() => submit()}>
+                        Save schema
+                    </ShellActionButton>
+                </>
+            }
+            headerContent={
+                <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1.2fr)_260px_320px]">
+                    <FieldBox label="Workspace title">
+                        <Input data-testid="page-title-input" value={pageMeta.title} onChange={(event) => setMetaField('title', event.currentTarget.value)} />
+                    </FieldBox>
+                    <FieldBox label="Payload slug">
+                        <Input data-testid="page-slug-input" value={pageMeta.slug} onChange={(event) => setMetaField('slug', event.currentTarget.value)} />
+                    </FieldBox>
+                    <FieldBox label="Surface status">
+                        <Select value={pageMeta.status} onValueChange={(value) => setMetaField('status', value)}>
+                            <SelectTrigger data-testid="page-status-select">
+                                <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {statusOptions.map((option) => (
+                                    <SelectItem key={option.value} value={option.value}>
+                                        {option.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </FieldBox>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                        <MetaMetric icon={Layers3} label="Root nodes" value={String(nodes.length)} />
+                        <MetaMetric icon={Database} label="AST nodes" value={String(readableNodeCount(nodes))} />
                     </div>
                 </div>
-            </header>
-
-            <main className="mx-auto grid min-h-[calc(100vh-81px)] max-w-[1800px] grid-cols-1 gap-6 px-6 py-6 lg:grid-cols-[320px_minmax(0,1fr)_360px] lg:px-8">
-                <Card className="overflow-hidden">
-                    <div className="border-b border-white/10 px-5 py-4">
-                        <div className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Palette</div>
-                        <div className="mt-2 text-2xl font-semibold text-white">Add blocks</div>
-                        <p className="mt-2 text-sm leading-7 text-slate-400">
-                            Page surface icin aktif component definition ve sistem block&apos;lari burada listelenir.
-                        </p>
-                    </div>
-
-                    <div className="border-b border-white/10 px-5 py-4">
-                        <Label htmlFor="page-builder-search" className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
-                            Search
+            }
+        >
+            <div data-testid="page-builder-shell" className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)_380px]">
+                <WorkspacePanel
+                    eyebrow="Schema Registry"
+                    title="Filament primitives"
+                    description="Surface-aware registry. Add a primitive as a root node or append it into the currently selected container."
+                    contentClassName="space-y-5"
+                >
+                    <div className="space-y-2">
+                        <Label htmlFor="page-builder-search" className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                            Search registry
                         </Label>
                         <div className="relative">
-                            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
+                            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                             <Input
                                 id="page-builder-search"
                                 data-testid="page-builder-search"
                                 className="pl-10"
-                                placeholder="Search blocks..."
+                                placeholder="Filter by slug, description, or group"
                                 value={paletteSearch}
                                 onChange={(event) => setPaletteSearch(event.currentTarget.value)}
                             />
                         </div>
                     </div>
 
-                    <ScrollArea className="max-h-[calc(100vh-320px)] px-4 py-4">
+                    {selectedNode?.acceptsChildren ? (
+                        <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm leading-6 text-muted-foreground">
+                            New nodes will be appended into <span className="font-medium text-foreground">{selectedNode.slug}</span> if the family rule allows it.
+                        </div>
+                    ) : null}
+
+                    <ScrollArea className="max-h-[calc(100vh-360px)] pr-3">
                         <div className="space-y-5">
-                            {Object.entries(groupedPaletteBlocks).map(([group, groupBlocks]) => (
+                            {Object.entries(groupedDefinitions).map(([group, groupDefinitions]) => (
                                 <section key={group} className="space-y-3">
-                                    <div className="flex items-center justify-between px-1">
-                                        <div className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">{group}</div>
-                                        <Badge>{groupBlocks.length}</Badge>
+                                    <div className="flex items-center justify-between">
+                                        <div className="text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-muted-foreground">{group}</div>
+                                        <Badge variant="outline">{groupDefinitions.length}</Badge>
                                     </div>
 
                                     <div className="space-y-3">
-                                        {groupBlocks.map((block) => (
-                                            <button
-                                                key={block.type}
-                                                type="button"
-                                                data-testid={`page-builder-add-${toTestIdToken(block.type)}`}
-                                                className="w-full rounded-3xl border border-white/10 bg-white/[0.03] p-4 text-left transition hover:border-amber-400/40 hover:bg-white/[0.05]"
-                                                onClick={() => addBlock(createBlockFromDefinition(block))}
-                                            >
-                                                <div className="flex items-start justify-between gap-3">
-                                                    <div className="min-w-0">
-                                                        <div className="font-semibold text-white">{block.title}</div>
-                                                        <div className="mt-1 text-sm leading-6 text-slate-400">{block.description}</div>
-                                                    </div>
+                                        {groupDefinitions.map((definition) => {
+                                            const canAppendToSelection =
+                                                selectedNode &&
+                                                selectedNode.acceptsChildren &&
+                                                selectedNode.allowedChildFamilies.includes(definition.family);
 
-                                                    <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-slate-300">
-                                                        <Plus className="size-4" />
-                                                    </span>
-                                                </div>
-                                            </button>
-                                        ))}
+                                            return (
+                                                <button
+                                                    key={definition.type}
+                                                    type="button"
+                                                    data-testid={`page-builder-add-${toTestIdToken(definition.type)}`}
+                                                    className="w-full rounded-3xl border border-border bg-card px-4 py-4 text-left transition hover:border-primary/35 hover:bg-accent/60"
+                                                    onClick={() =>
+                                                        addNode(
+                                                            createNodeFromDefinition(definition),
+                                                            canAppendToSelection ? selectedNode?.id ?? null : null,
+                                                        )
+                                                    }
+                                                >
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div className="min-w-0">
+                                                            <div className="font-medium text-card-foreground">{definition.title}</div>
+                                                            <div className="mt-1 truncate font-mono text-xs text-muted-foreground">{definition.slug}</div>
+                                                            <div className="mt-3 text-sm leading-6 text-muted-foreground">{definition.description}</div>
+                                                            <div className="mt-3 flex flex-wrap gap-2">
+                                                                <Badge variant="secondary">{definition.family}</Badge>
+                                                                <Badge variant="outline">{definition.source}</Badge>
+                                                            </div>
+                                                        </div>
+
+                                                        <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-2xl border border-border bg-muted text-muted-foreground">
+                                                            <Plus className="size-4" />
+                                                        </span>
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
                                     </div>
                                 </section>
                             ))}
 
-                            {filteredBlocks.length === 0 ? (
-                                <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.03] p-6 text-sm leading-7 text-slate-400">
-                                    Search does not match any page blocks.
+                            {filteredDefinitions.length === 0 ? (
+                                <div className="rounded-3xl border border-dashed border-border bg-muted/40 p-6 text-sm leading-7 text-muted-foreground">
+                                    No registry entries match the current filter.
                                 </div>
                             ) : null}
                         </div>
                     </ScrollArea>
-                </Card>
+                </WorkspacePanel>
 
-                <div className="space-y-6">
-                    <Card className="overflow-hidden">
-                        <div className="grid gap-5 border-b border-white/10 px-5 py-5 md:grid-cols-3">
-                            <div className="space-y-2">
-                                <Label htmlFor="page-title-input" className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
-                                    Title
-                                </Label>
-                                <Input
-                                    id="page-title-input"
-                                    data-testid="page-title-input"
-                                    value={pageMeta.title}
-                                    onChange={(event) => setMetaField('title', event.currentTarget.value)}
-                                />
-                            </div>
+                <WorkspacePanel
+                    eyebrow="Composition Area"
+                    title="Struktura AST"
+                    description="This is the canonical node graph that will be validated, compiled, and hydrated into Filament at runtime."
+                    contentClassName="space-y-5"
+                >
+                    <div className="grid gap-3 md:grid-cols-3">
+                        <MetaMetric icon={GitBranch} label="Selection depth" value={String(selectedNode ? selectedNodeDepth(nodes, selectedNode.id) + 1 : 0)} />
+                        <MetaMetric icon={Database} label="Bound models" value={String(uniqueBoundModels(flattenedNodes).length)} />
+                        <MetaMetric icon={ShieldCheck} label="Registry primitives" value={String(definitions.length)} />
+                    </div>
 
-                            <div className="space-y-2">
-                                <Label htmlFor="page-slug-input" className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
-                                    Slug
-                                </Label>
-                                <Input
-                                    id="page-slug-input"
-                                    data-testid="page-slug-input"
-                                    value={pageMeta.slug}
-                                    onChange={(event) => setMetaField('slug', event.currentTarget.value)}
-                                />
-                            </div>
+                    <Separator />
 
-                            <div className="space-y-2">
-                                <Label htmlFor="page-status-select" className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
-                                    Status
-                                </Label>
-                                <Select
-                                    id="page-status-select"
-                                    data-testid="page-status-select"
-                                    value={pageMeta.status}
-                                    onChange={(event) => setMetaField('status', event.currentTarget.value)}
-                                >
-                                    {statusOptions.map((option) => (
-                                        <option key={option.value} value={option.value}>
-                                            {option.label}
-                                        </option>
+                    {nodes.length === 0 ? (
+                        <div className="rounded-[1.75rem] border border-dashed border-border bg-muted/30 p-8 text-sm leading-7 text-muted-foreground">
+                            Add a primitive from the Schema Registry to begin composing the technical tree.
+                        </div>
+                    ) : (
+                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                            <SortableContext items={nodes.map((node) => node.id)} strategy={verticalListSortingStrategy}>
+                                <div className="space-y-4">
+                                    {nodes.map((node, index) => (
+                                        <RootSchemaNodeCard
+                                            key={node.id}
+                                            node={node}
+                                            index={index}
+                                            total={nodes.length}
+                                            selectedNodeId={selectedNodeId}
+                                            definitionsByType={definitionsByType}
+                                            onSelect={selectNode}
+                                        />
                                     ))}
-                                </Select>
+                                </div>
+                            </SortableContext>
+                        </DndContext>
+                    )}
+                </WorkspacePanel>
+
+                <WorkspacePanel
+                    eyebrow="Inspector"
+                    title={selectedNode ? selectedNode.label : 'Select a node'}
+                    description={
+                        selectedNode
+                            ? 'Configure node props, data binding, validation, and appearance metadata from the schema registry contract.'
+                            : 'Select a node in the Composition Area to inspect and edit its Struktura DSL props.'
+                    }
+                    contentClassName="space-y-5"
+                >
+                    {selectedNode && selectedDefinition ? (
+                        <>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <MetaMetric icon={Layers3} label="Family" value={selectedDefinition.family} />
+                                <MetaMetric icon={Braces} label="Child nodes" value={String(selectedNode.children.length)} />
+                                <MetaMetric icon={GitBranch} label="Data source" value={shortModel(selectedDataSource?.model) || 'Unbound'} />
+                                <MetaMetric icon={ShieldCheck} label="Schema fields" value={String(readableFieldCount(selectedDefinition.fields))} />
                             </div>
-                        </div>
-                    </Card>
 
-                    <Card className="overflow-hidden">
-                        <div className="border-b border-white/10 px-5 py-5">
-                            <div className="flex flex-wrap items-center justify-between gap-4">
-                                <div>
-                                    <div className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Canvas</div>
-                                    <div className="mt-2 text-2xl font-semibold text-white">Live visual preview</div>
-                                    <p className="mt-2 text-sm leading-7 text-slate-400">
-                                        React-side editor canvas top-level block listesi icin secim, siralama ve onizleme yuzeyi saglar.
-                                    </p>
-                                </div>
-
-                                <Badge>{pageMeta.slug.trim() !== '' ? `/${pageMeta.slug}` : '/untitled-page'}</Badge>
-                            </div>
-                        </div>
-
-                        <div className="bg-[radial-gradient(circle_at_top,rgba(245,158,11,0.16),transparent_26%),linear-gradient(180deg,rgba(15,23,42,0.96),rgba(15,23,42,0.92))] p-5">
-                            <div className="rounded-[2rem] border border-white/10 bg-slate-900/80 shadow-[0_24px_80px_-48px_rgba(15,23,42,1)]">
-                                <div className="flex items-center justify-between gap-4 border-b border-white/10 px-5 py-4">
-                                    <div className="flex items-center gap-2">
-                                        <span className="size-3 rounded-full bg-rose-300" />
-                                        <span className="size-3 rounded-full bg-amber-300" />
-                                        <span className="size-3 rounded-full bg-emerald-300" />
-                                    </div>
-
-                                    <Badge className="border-emerald-400/20 bg-emerald-400/10 text-emerald-200">React editor preview</Badge>
-                                </div>
-
-                                <div className="p-5">
-                                    {blocks.length === 0 ? (
-                                        <div
-                                            data-testid="page-builder-canvas-empty"
-                                            className="flex min-h-[520px] items-center justify-center rounded-[2rem] border border-dashed border-white/10 bg-slate-950/40 px-10 text-center text-sm leading-7 text-slate-400"
-                                        >
-                                            Add a block from the left palette to start building this page.
-                                        </div>
-                                    ) : (
-                                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                                            <SortableContext items={blocks.map((block) => block.id)} strategy={verticalListSortingStrategy}>
-                                                <div className="space-y-4">
-                                                    {blocks.map((block, index) => (
-                                                        <CanvasBlock
-                                                            key={block.id}
-                                                            block={block}
-                                                            index={index}
-                                                            isSelected={selectedBlockId === block.id}
-                                                            onSelect={() => selectBlock(block.id)}
-                                                        />
-                                                    ))}
-                                                </div>
-                                            </SortableContext>
-                                        </DndContext>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </Card>
-                </div>
-
-                <Card className="overflow-hidden">
-                    <div className="border-b border-white/10 px-5 py-5">
-                        <div className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Inspector</div>
-                        <div className="mt-2 text-2xl font-semibold text-white">
-                            {selectedBlock ? selectedBlock.label : 'Select a block'}
-                        </div>
-                        <p className="mt-2 text-sm leading-7 text-slate-400">
-                            Block metadata, movement controls, and modal-first editing live here.
-                        </p>
-                    </div>
-
-                    <div className="space-y-5 px-5 py-5">
-                        {selectedBlock && selectedDefinition ? (
-                            <>
-                                <div className="grid gap-3 sm:grid-cols-2">
-                                    <Button data-testid="page-builder-edit-block" onClick={() => setIsEditDialogOpen(true)}>
-                                        <PencilLine className="size-4" />
-                                        Edit block
-                                    </Button>
-
-                                    <Button variant="secondary" onClick={duplicateSelectedBlock}>
-                                        <Copy className="size-4" />
-                                        Duplicate
-                                    </Button>
-
-                                    <Button variant="secondary" onClick={() => moveSelectedBlock('up')}>
-                                        <ArrowUp className="size-4" />
-                                        Move up
-                                    </Button>
-
-                                    <Button variant="secondary" onClick={() => moveSelectedBlock('down')}>
-                                        <ArrowDown className="size-4" />
-                                        Move down
-                                    </Button>
-                                </div>
-
-                                <Button
-                                    variant="danger"
-                                    className="w-full"
-                                    onClick={() => {
-                                        removeSelectedBlock();
-                                        setIsEditDialogOpen(false);
-                                    }}
-                                >
-                                    <Trash2 className="size-4" />
-                                    Remove block
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <Button variant="default" data-testid="page-builder-duplicate-node" onClick={() => duplicateSelectedNode()}>
+                                    Duplicate node
                                 </Button>
-
-                                <Separator className="h-px w-full bg-white/10" />
-
-                                <dl className="grid gap-4 text-sm">
-                                    <MetaRow label="Type" value={selectedBlock.type} />
-                                    <MetaRow label="Group" value={selectedBlock.group ?? 'General'} />
-                                    <MetaRow label="Source" value={selectedBlock.source} />
-                                    <MetaRow label="Schema fields" value={String(readableFieldCount(selectedDefinition.fields))} />
-                                    <MetaRow label="Position" value={`${blocks.findIndex((block) => block.id === selectedBlock.id) + 1} / ${blocks.length}`} />
-                                </dl>
-                            </>
-                        ) : (
-                            <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.03] p-5 text-sm leading-7 text-slate-400">
-                                Click any block on the canvas to open its metadata and editing controls.
+                                <Button variant="destructive" data-testid="page-builder-remove-node" onClick={() => removeSelectedNode()}>
+                                    Remove node
+                                </Button>
+                                <Button variant="outline" data-testid="page-builder-move-up" onClick={() => moveSelectedNode('up')}>
+                                    <ArrowUp data-icon="inline-start" className="size-4" />
+                                    Move up
+                                </Button>
+                                <Button variant="outline" data-testid="page-builder-move-down" onClick={() => moveSelectedNode('down')}>
+                                    <ArrowDown data-icon="inline-start" className="size-4" />
+                                    Move down
+                                </Button>
                             </div>
-                        )}
 
-                        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-                            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">State</div>
-                            <div className="mt-3 space-y-2 text-sm text-slate-300">
-                                <div className="flex items-center justify-between gap-3">
-                                    <span>Dirty</span>
-                                    <Badge>{isDirty ? 'Unsaved' : 'Synced'}</Badge>
-                                </div>
-                                <div className="flex items-center justify-between gap-3">
-                                    <span>Status</span>
-                                    <Badge>{pageMeta.status}</Badge>
-                                </div>
-                                <div className="flex items-center justify-between gap-3">
-                                    <span>Blocks</span>
-                                    <Badge>{blocks.length}</Badge>
-                                </div>
-                            </div>
+                            <Tabs defaultValue="data-source" className="space-y-4">
+                                <TabsList className="grid grid-cols-3">
+                                    {inspectorTabConfig.map((tab) => (
+                                        <TabsTrigger
+                                            key={tab.value}
+                                            value={tab.value}
+                                            data-testid={`page-builder-tab-${toTestIdToken(tab.value)}`}
+                                        >
+                                            {tab.label}
+                                        </TabsTrigger>
+                                    ))}
+                                </TabsList>
+
+                                {inspectorTabConfig.map((tab) => {
+                                    const fields = selectedDefinition.fields.filter((field) => tab.groups.includes(field.group));
+
+                                    return (
+                                        <TabsContent key={tab.value} value={tab.value} className="space-y-4">
+                                            {fields.length === 0 ? (
+                                                <div className="rounded-2xl border border-dashed border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+                                                    No schema fields are registered for this inspector tab.
+                                                </div>
+                                            ) : (
+                                                <DynamicFieldRenderer
+                                                    blockType={selectedNode.type}
+                                                    uploadUrl={routes.upload}
+                                                    dataBinding={dataBinding}
+                                                    fields={fields}
+                                                    data={selectedNode.props}
+                                                    onChange={(path, value) => updateNodeProps(selectedNode.id, path, value)}
+                                                    onPatch={(values) => patchNodeProps(selectedNode.id, values)}
+                                                    onAddRepeaterItem={(path, fieldSchema) => addRepeaterItem(selectedNode.id, path, fieldSchema)}
+                                                    onRemoveRepeaterItem={(path, index) => removeRepeaterItem(selectedNode.id, path, index)}
+                                                />
+                                            )}
+                                        </TabsContent>
+                                    );
+                                })}
+                            </Tabs>
+                        </>
+                    ) : (
+                        <div className="rounded-[1.75rem] border border-dashed border-border bg-muted/30 p-8 text-sm leading-7 text-muted-foreground">
+                            Select a node from the composition tree to inspect its data source, validation rules, and appearance props.
                         </div>
-                    </div>
-                </Card>
-            </main>
-
-            <Dialog
-                open={isEditDialogOpen && !!selectedBlock && !!selectedDefinition}
-                title={selectedBlock ? `Edit ${selectedBlock.label}` : 'Edit block'}
-                description={selectedDefinition?.description}
-                onClose={() => setIsEditDialogOpen(false)}
-                footer={
-                    <div className="flex justify-end">
-                        <Button onClick={() => setIsEditDialogOpen(false)}>Apply changes</Button>
-                    </div>
-                }
-            >
-                {selectedBlock && selectedDefinition ? (
-                    <DynamicFieldRenderer
-                        blockType={selectedBlock.type}
-                        uploadUrl={routes.upload}
-                        fields={selectedDefinition.fields}
-                        data={selectedBlock.data}
-                        onChange={(path, value) => updateBlockData(selectedBlock.id, path, value)}
-                        onAddRepeaterItem={(path, fields) => addRepeaterItem(selectedBlock.id, path, fields)}
-                        onRemoveRepeaterItem={(path, index) => removeRepeaterItem(selectedBlock.id, path, index)}
-                    />
-                ) : null}
-            </Dialog>
-        </div>
+                    )}
+                </WorkspacePanel>
+            </div>
+        </CmsAppShell>
     );
 }
 
-function MetaRow({ label, value }: { label: string; value: string }) {
+function serializeNode(node: EditorNode): PersistedEditorNode {
+    return {
+        id: node.id,
+        type: node.type,
+        label: node.label,
+        source: node.source,
+        surface: node.surface,
+        variant: node.variant,
+        props: node.props,
+        children: node.children.map((child) => serializeNode(child)),
+        computed_logic: node.computed_logic ?? null,
+        meta: node.meta,
+    };
+}
+
+function FieldBox({ label, children }: { label: string; children: ReactNode }) {
     return (
-        <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
-            <dt className="text-slate-400">{label}</dt>
-            <dd className="max-w-[60%] truncate text-right font-medium text-white">{value}</dd>
+        <div className="space-y-2">
+            <Label className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">{label}</Label>
+            {children}
         </div>
     );
 }
 
-type CanvasBlockProps = {
-    block: EditorBlock;
+function MetaMetric({ icon: Icon, label, value }: { icon: typeof Database; label: string; value: string }) {
+    return (
+        <div className="rounded-2xl border border-border bg-muted/20 px-4 py-3">
+            <div className="flex items-start gap-3">
+                <span className="mt-0.5 inline-flex size-8 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground">
+                    <Icon className="size-4" />
+                </span>
+                <div className="min-w-0">
+                    <div className="text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-muted-foreground">{label}</div>
+                    <div className="mt-2 break-words text-sm font-medium text-foreground">{value}</div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+type SchemaNodeCardProps = {
+    node: EditorNode;
     index: number;
-    isSelected: boolean;
-    onSelect: () => void;
+    depth: number;
+    total: number;
+    selectedNodeId: string | null;
+    definitionsByType: Map<string, AvailableBlock>;
+    onSelect: (nodeId: string) => void;
 };
 
-function CanvasBlock({ block, index, isSelected, onSelect }: CanvasBlockProps) {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: block.id });
+function RootSchemaNodeCard({
+    node,
+    index,
+    total,
+    selectedNodeId,
+    definitionsByType,
+    onSelect,
+}: Omit<SchemaNodeCardProps, 'depth'>) {
+    const definition = definitionsByType.get(node.type) ?? null;
+    const sourceSummary = dataSourceSummary(node.props);
+    const isSelected = selectedNodeId === node.id;
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: node.id });
 
     return (
-        <article
-            ref={setNodeRef}
-            style={{
-                transform: CSS.Transform.toString(transform),
-                transition,
-            }}
-            data-testid={isSelected ? 'page-builder-selected-block' : undefined}
-            className={cn(
-                'rounded-[2rem] border bg-slate-950/50 p-4 transition',
-                isSelected ? 'border-amber-400 shadow-[0_0_0_1px_rgba(251,191,36,0.25)]' : 'border-white/10 hover:border-white/20',
-                isDragging && 'opacity-60',
-            )}
-        >
-            <div className="mb-4 flex items-start justify-between gap-4">
-                <button type="button" className="min-w-0 text-left" onClick={onSelect}>
-                    <div className="font-semibold text-white">{block.label}</div>
-                    <div className="mt-1 text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
-                        Block {index + 1}
-                    </div>
-                </button>
-
-                <div className="flex items-center gap-3">
-                    {isSelected ? <Badge className="border-amber-400/20 bg-amber-400/10 text-amber-200">Selected</Badge> : null}
+        <div className="space-y-3">
+            <article
+                ref={setNodeRef}
+                style={{ transform: CSS.Transform.toString(transform), transition }}
+                data-testid={`page-builder-node-${toTestIdToken(node.slug)}-${node.id}`}
+                className={cn(
+                    'rounded-[1.75rem] border bg-card transition',
+                    isSelected ? 'border-primary shadow-[0_0_0_1px_hsl(var(--primary)/0.12)]' : 'border-border hover:border-primary/35',
+                    isDragging && 'opacity-60',
+                )}
+            >
+                <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
+                    <button type="button" className="min-w-0 text-left" onClick={() => onSelect(node.id)}>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="secondary">{node.group ?? definition?.group ?? 'General'}</Badge>
+                            <Badge variant="outline">{node.source}</Badge>
+                            <Badge variant="outline">{definition?.family ?? node.family ?? 'generic'}</Badge>
+                            {isSelected ? <Badge>Selected</Badge> : null}
+                        </div>
+                        <div className="mt-3 truncate font-mono text-sm font-medium text-foreground">{node.slug}</div>
+                        <div className="mt-2 text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                            Node {index + 1} of {total}
+                        </div>
+                    </button>
 
                     <button
                         type="button"
-                        className="inline-flex size-10 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-slate-300 transition hover:border-white/20 hover:text-white"
+                        className="inline-flex size-9 items-center justify-center rounded-2xl border border-border bg-muted/30 text-muted-foreground transition hover:bg-muted hover:text-foreground"
                         {...attributes}
                         {...listeners}
                     >
                         <GripVertical className="size-4" />
                     </button>
                 </div>
-            </div>
 
-            <button type="button" className="block w-full text-left" onClick={onSelect}>
-                <BlockPreviewRenderer block={block} />
-            </button>
-        </article>
+                <button type="button" className="block w-full px-5 py-4 text-left" onClick={() => onSelect(node.id)}>
+                    <div className="grid gap-3 md:grid-cols-2">
+                        <NodeFact icon={Database} label="Data source" value={shortModel(sourceSummary.model) || 'Unbound'} />
+                        <NodeFact icon={GitBranch} label="Relationship" value={sourceSummary.relationship || 'N/A'} />
+                        <NodeFact icon={Braces} label="Payload path" value={sourceSummary.path || 'N/A'} />
+                        <NodeFact icon={ShieldCheck} label="Hydration logic" value={sourceSummary.hydration || 'N/A'} />
+                    </div>
+                </button>
+            </article>
+
+            {node.children.length > 0 ? (
+                <div className="space-y-3">
+                    {node.children.map((child, childIndex) => (
+                        <SchemaNodeCard
+                            key={child.id}
+                            node={child}
+                            index={childIndex}
+                            depth={1}
+                            total={node.children.length}
+                            selectedNodeId={selectedNodeId}
+                            definitionsByType={definitionsByType}
+                            onSelect={onSelect}
+                        />
+                    ))}
+                </div>
+            ) : null}
+        </div>
     );
+}
+
+function SchemaNodeCard({
+    node,
+    index,
+    depth,
+    total,
+    selectedNodeId,
+    definitionsByType,
+    onSelect,
+}: SchemaNodeCardProps) {
+    const definition = definitionsByType.get(node.type) ?? null;
+    const sourceSummary = dataSourceSummary(node.props);
+    const isSelected = selectedNodeId === node.id;
+
+    return (
+        <div className="space-y-3" style={{ paddingLeft: `${depth * 1.25}rem` }}>
+            <article
+                data-testid={`page-builder-node-${toTestIdToken(node.slug)}-${node.id}`}
+                className={cn(
+                    'rounded-[1.75rem] border bg-card transition',
+                    isSelected ? 'border-primary shadow-[0_0_0_1px_hsl(var(--primary)/0.12)]' : 'border-border hover:border-primary/35',
+                )}
+            >
+                <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
+                    <button type="button" className="min-w-0 text-left" onClick={() => onSelect(node.id)}>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="secondary">{node.group ?? definition?.group ?? 'General'}</Badge>
+                            <Badge variant="outline">{node.source}</Badge>
+                            <Badge variant="outline">{definition?.family ?? node.family ?? 'generic'}</Badge>
+                            {isSelected ? <Badge>Selected</Badge> : null}
+                        </div>
+                        <div className="mt-3 truncate font-mono text-sm font-medium text-foreground">{node.slug}</div>
+                        <div className="mt-2 text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                            Node {index + 1} of {total}
+                        </div>
+                    </button>
+                </div>
+
+                <button type="button" className="block w-full px-5 py-4 text-left" onClick={() => onSelect(node.id)}>
+                    <div className="grid gap-3 md:grid-cols-2">
+                        <NodeFact icon={Database} label="Data source" value={shortModel(sourceSummary.model) || 'Unbound'} />
+                        <NodeFact icon={GitBranch} label="Relationship" value={sourceSummary.relationship || 'N/A'} />
+                        <NodeFact icon={Braces} label="Payload path" value={sourceSummary.path || 'N/A'} />
+                        <NodeFact icon={ShieldCheck} label="Hydration logic" value={sourceSummary.hydration || 'N/A'} />
+                    </div>
+                </button>
+            </article>
+
+            {node.children.length > 0 ? (
+                <div className="space-y-3">
+                    {node.children.map((child, childIndex) => (
+                        <SchemaNodeCard
+                            key={child.id}
+                            node={child}
+                            index={childIndex}
+                            depth={depth + 1}
+                            total={node.children.length}
+                            selectedNodeId={selectedNodeId}
+                            definitionsByType={definitionsByType}
+                            onSelect={onSelect}
+                        />
+                    ))}
+                </div>
+            ) : null}
+        </div>
+    );
+}
+
+function NodeFact({ icon: Icon, label, value }: { icon: typeof Database; label: string; value: string }) {
+    return (
+        <div className="rounded-2xl border border-border bg-muted/20 px-4 py-3">
+            <div className="flex items-start gap-3">
+                <span className="mt-0.5 inline-flex size-8 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground">
+                    <Icon className="size-4" />
+                </span>
+                <div className="min-w-0">
+                    <div className="text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-muted-foreground">{label}</div>
+                    <div className="mt-2 break-words text-sm font-medium text-foreground">{value}</div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function dataSourceSummary(props: Record<string, unknown>) {
+    return {
+        model: stringValue(props.data_source_model),
+        path:
+            stringValue(props.payload_path) ||
+            stringValue(props.column_path) ||
+            stringValue(props.widget_key) ||
+            stringValue(props.schema_key),
+        relationship: stringValue(props.relationship),
+        hydration: stringValue(props.hydration_logic) || stringValue(props.query_scope),
+    };
+}
+
+function uniqueBoundModels(nodes: EditorNode[]): string[] {
+    return Array.from(
+        new Set(
+            nodes
+                .map((node) => stringValue(node.props.data_source_model))
+                .filter((value): value is string => value !== null),
+        ),
+    );
+}
+
+function selectedNodeDepth(nodes: EditorNode[], nodeId: string, depth = 0): number {
+    for (const node of nodes) {
+        if (node.id === nodeId) {
+            return depth;
+        }
+
+        const childDepth = selectedNodeDepth(node.children, nodeId, depth + 1);
+
+        if (childDepth !== -1) {
+            return childDepth;
+        }
+    }
+
+    return -1;
+}
+
+function stringValue(value: unknown): string | null {
+    return typeof value === 'string' && value.trim() !== '' ? value : null;
+}
+
+function shortModel(model?: string | null): string {
+    if (!model) {
+        return '';
+    }
+
+    return model.split('\\').at(-1) ?? model;
 }

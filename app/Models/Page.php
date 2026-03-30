@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Casts\BlockCollectionCast;
+use App\Casts\EngineNodeCollectionCast;
 use App\PageStatus;
 use Database\Factories\PageFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -42,7 +42,7 @@ class Page extends Model
         return [
             'status' => PageStatus::class,
             'published_at' => 'immutable_datetime',
-            'blocks' => BlockCollectionCast::class,
+            'blocks' => EngineNodeCollectionCast::class,
         ];
     }
 

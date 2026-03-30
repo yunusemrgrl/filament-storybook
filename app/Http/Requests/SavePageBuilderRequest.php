@@ -2,10 +2,14 @@
 
 namespace App\Http\Requests;
 
+use App\ComponentSurface;
 use App\PageStatus;
+use App\Support\PageBuilder\EditorPayloadValidator;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class SavePageBuilderRequest extends FormRequest
 {
@@ -33,12 +37,40 @@ class SavePageBuilderRequest extends FormRequest
                 Rule::unique('pages', 'slug')->ignore($this->route('page')),
             ],
             'status' => ['required', Rule::enum(PageStatus::class)],
-            'blocks' => ['array'],
-            'blocks.*.id' => ['required', 'string'],
-            'blocks.*.type' => ['required', 'string'],
-            'blocks.*.source' => ['nullable', 'string'],
-            'blocks.*.variant' => ['nullable', 'string'],
-            'blocks.*.data' => ['array'],
+            'nodes' => ['array'],
+            'nodes.*.id' => ['required', 'string'],
+            'nodes.*.type' => ['required', 'string'],
+            'nodes.*.source' => ['nullable', Rule::in(['definition', 'system'])],
+            'nodes.*.variant' => ['nullable', 'string'],
+            'nodes.*.props' => ['required', 'array'],
+            'nodes.*.children' => ['array'],
+        ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        if (is_string($this->input('slug'))) {
+            $this->merge([
+                'slug' => Str::slug($this->string('slug')->value()),
+            ]);
+        }
+    }
+
+    /**
+     * @return array<int, \Closure(Validator): void>
+     */
+    public function after(): array
+    {
+        return [
+            function (Validator $validator): void {
+                $payloadValidator = app(EditorPayloadValidator::class);
+
+                foreach ($payloadValidator->errorsFor(ComponentSurface::Page, $this->input('nodes', [])) as $field => $messages) {
+                    foreach ($messages as $message) {
+                        $validator->errors()->add($field, $message);
+                    }
+                }
+            },
         ];
     }
 }

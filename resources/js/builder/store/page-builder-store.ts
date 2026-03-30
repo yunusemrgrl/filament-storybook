@@ -1,30 +1,39 @@
-import { arrayMove } from '@dnd-kit/sortable';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 
-import { createRepeaterItem, setNestedValue } from '../lib/editor';
-import { cloneValue, makeId } from '../lib/utils';
-import type { EditorBlock, EditorField, PageMeta } from '../types';
+import {
+    createRepeaterItem,
+    duplicateNode,
+    findNode,
+    insertNode,
+    moveNode,
+    removeNode,
+    reorderRootNodes,
+    setNestedValue,
+} from '../lib/editor';
+import { cloneValue } from '../lib/utils';
+import type { EditorField, EditorNode, PageMeta } from '../types';
 
 type PageBuilderState = {
-    pageMeta: Omit<PageMeta, 'blocks'>;
-    blocks: EditorBlock[];
-    selectedBlockId: string | null;
+    pageMeta: Omit<PageMeta, 'nodes'>;
+    nodes: EditorNode[];
+    selectedNodeId: string | null;
     paletteSearch: string;
     isDirty: boolean;
     isSaving: boolean;
     initialize: (page: PageMeta) => void;
     setMetaField: (field: 'title' | 'slug' | 'status', value: string) => void;
     setPaletteSearch: (value: string) => void;
-    addBlock: (block: EditorBlock) => void;
-    selectBlock: (blockId: string | null) => void;
-    updateBlockData: (blockId: string, path: Array<string | number>, value: unknown) => void;
-    addRepeaterItem: (blockId: string, path: Array<string | number>, fields: EditorField[]) => void;
-    removeRepeaterItem: (blockId: string, path: Array<string | number>, index: number) => void;
-    duplicateSelectedBlock: () => void;
-    removeSelectedBlock: () => void;
-    moveSelectedBlock: (direction: 'up' | 'down') => void;
-    reorderBlocks: (activeId: string, overId: string) => void;
+    addNode: (node: EditorNode, parentId?: string | null) => void;
+    selectNode: (nodeId: string | null) => void;
+    updateNodeProps: (nodeId: string, path: Array<string | number>, value: unknown) => void;
+    patchNodeProps: (nodeId: string, values: Record<string, unknown>) => void;
+    addRepeaterItem: (nodeId: string, path: Array<string | number>, fields: EditorField[]) => void;
+    removeRepeaterItem: (nodeId: string, path: Array<string | number>, index: number) => void;
+    duplicateSelectedNode: () => void;
+    removeSelectedNode: () => void;
+    moveSelectedNode: (direction: 'up' | 'down') => void;
+    reorderRootNodes: (activeId: string, overId: string) => void;
     setSaving: (value: boolean) => void;
     markClean: () => void;
 };
@@ -37,8 +46,8 @@ export const usePageBuilderStore = create<PageBuilderState>()(
             slug: '',
             status: 'draft',
         },
-        blocks: [],
-        selectedBlockId: null,
+        nodes: [],
+        selectedNodeId: null,
         paletteSearch: '',
         isDirty: false,
         isSaving: false,
@@ -50,11 +59,11 @@ export const usePageBuilderStore = create<PageBuilderState>()(
                     slug: page.slug,
                     status: page.status,
                 };
-                state.blocks = cloneValue(page.blocks);
-                state.selectedBlockId = page.blocks[0]?.id ?? null;
+                state.nodes = cloneValue(page.nodes);
+                state.selectedNodeId = page.nodes[0]?.id ?? null;
+                state.paletteSearch = '';
                 state.isDirty = false;
                 state.isSaving = false;
-                state.paletteSearch = '';
             }),
         setMetaField: (field, value) =>
             set((state) => {
@@ -65,132 +74,79 @@ export const usePageBuilderStore = create<PageBuilderState>()(
             set((state) => {
                 state.paletteSearch = value;
             }),
-        addBlock: (block) =>
+        addNode: (node, parentId = null) =>
             set((state) => {
-                state.blocks.push(cloneValue(block));
-                state.selectedBlockId = block.id;
+                state.nodes = insertNode(state.nodes, node, parentId);
+                state.selectedNodeId = node.id;
                 state.isDirty = true;
             }),
-        selectBlock: (blockId) =>
+        selectNode: (nodeId) =>
             set((state) => {
-                state.selectedBlockId = blockId;
+                state.selectedNodeId = nodeId;
             }),
-        updateBlockData: (blockId, path, value) =>
+        updateNodeProps: (nodeId, path, value) =>
             set((state) => {
-                const block = state.blocks.find((item) => item.id === blockId);
-
-                if (!block) {
-                    return;
-                }
-
-                block.data = setNestedValue(block.data, path, value);
+                state.nodes = state.nodes.map((node) => updateNodePropsRecursive(node, nodeId, path, value));
                 state.isDirty = true;
             }),
-        addRepeaterItem: (blockId, path, fields) =>
+        patchNodeProps: (nodeId, values) =>
             set((state) => {
-                const block = state.blocks.find((item) => item.id === blockId);
-
-                if (!block) {
-                    return;
-                }
-
-                const currentValue = path.reduce<unknown>((carry, segment) => {
-                    if (typeof segment === 'number' && Array.isArray(carry)) {
-                        return carry[segment];
-                    }
-
-                    if (typeof segment === 'string' && carry && typeof carry === 'object' && !Array.isArray(carry)) {
-                        return (carry as Record<string, unknown>)[segment];
-                    }
-
-                    return undefined;
-                }, block.data);
-
-                const items = Array.isArray(currentValue) ? cloneValue(currentValue) : [];
-                items.push(createRepeaterItem(fields));
-                block.data = setNestedValue(block.data, path, items);
+                state.nodes = state.nodes.map((node) => patchNodePropsRecursive(node, nodeId, values));
                 state.isDirty = true;
             }),
-        removeRepeaterItem: (blockId, path, index) =>
+        addRepeaterItem: (nodeId, path, fields) =>
             set((state) => {
-                const block = state.blocks.find((item) => item.id === blockId);
-
-                if (!block) {
-                    return;
-                }
-
-                const currentValue = path.reduce<unknown>((carry, segment) => {
-                    if (typeof segment === 'number' && Array.isArray(carry)) {
-                        return carry[segment];
-                    }
-
-                    if (typeof segment === 'string' && carry && typeof carry === 'object' && !Array.isArray(carry)) {
-                        return (carry as Record<string, unknown>)[segment];
-                    }
-
-                    return undefined;
-                }, block.data);
-
-                const items = Array.isArray(currentValue) ? cloneValue(currentValue) : [];
-                items.splice(index, 1);
-                block.data = setNestedValue(block.data, path, items);
+                state.nodes = state.nodes.map((node) =>
+                    updateRepeaterItemsRecursive(node, nodeId, path, (items) => [...items, createRepeaterItem(fields)]),
+                );
                 state.isDirty = true;
             }),
-        duplicateSelectedBlock: () =>
+        removeRepeaterItem: (nodeId, path, index) =>
             set((state) => {
-                const selectedIndex = state.blocks.findIndex((block) => block.id === state.selectedBlockId);
+                state.nodes = state.nodes.map((node) =>
+                    updateRepeaterItemsRecursive(node, nodeId, path, (items) => {
+                        const nextItems = cloneValue(items);
+                        nextItems.splice(index, 1);
 
-                if (selectedIndex === -1) {
-                    return;
-                }
-
-                const duplicate = cloneValue(state.blocks[selectedIndex]);
-                duplicate.id = makeId();
-                duplicate.label = `${duplicate.label} copy`;
-                state.blocks.splice(selectedIndex + 1, 0, duplicate);
-                state.selectedBlockId = duplicate.id;
+                        return nextItems;
+                    }),
+                );
                 state.isDirty = true;
             }),
-        removeSelectedBlock: () =>
+        duplicateSelectedNode: () =>
             set((state) => {
-                const selectedIndex = state.blocks.findIndex((block) => block.id === state.selectedBlockId);
-
-                if (selectedIndex === -1) {
+                if (!state.selectedNodeId) {
                     return;
                 }
 
-                state.blocks.splice(selectedIndex, 1);
-                state.selectedBlockId = state.blocks[selectedIndex]?.id ?? state.blocks[selectedIndex - 1]?.id ?? null;
+                const duplicated = duplicateNode(state.nodes, state.selectedNodeId);
+                state.nodes = duplicated.nodes;
+                state.selectedNodeId = duplicated.duplicateId;
+                state.isDirty = duplicated.duplicateId !== null;
+            }),
+        removeSelectedNode: () =>
+            set((state) => {
+                if (!state.selectedNodeId) {
+                    return;
+                }
+
+                state.nodes = removeNode(state.nodes, state.selectedNodeId);
+                state.selectedNodeId = findNode(state.nodes, state.selectedNodeId) ? state.selectedNodeId : state.nodes[0]?.id ?? null;
                 state.isDirty = true;
             }),
-        moveSelectedBlock: (direction) =>
+        moveSelectedNode: (direction) =>
             set((state) => {
-                const selectedIndex = state.blocks.findIndex((block) => block.id === state.selectedBlockId);
-
-                if (selectedIndex === -1) {
+                if (!state.selectedNodeId) {
                     return;
                 }
 
-                const targetIndex = direction === 'up' ? selectedIndex - 1 : selectedIndex + 1;
-
-                if (targetIndex < 0 || targetIndex >= state.blocks.length) {
-                    return;
-                }
-
-                state.blocks = arrayMove(state.blocks, selectedIndex, targetIndex);
+                state.nodes = moveNode(state.nodes, state.selectedNodeId, direction);
                 state.isDirty = true;
             }),
-        reorderBlocks: (activeId, overId) =>
+        reorderRootNodes: (activeId, overId) =>
             set((state) => {
-                const activeIndex = state.blocks.findIndex((block) => block.id === activeId);
-                const overIndex = state.blocks.findIndex((block) => block.id === overId);
-
-                if (activeIndex === -1 || overIndex === -1 || activeIndex === overIndex) {
-                    return;
-                }
-
-                state.blocks = arrayMove(state.blocks, activeIndex, overIndex);
-                state.selectedBlockId = activeId;
+                state.nodes = reorderRootNodes(state.nodes, activeId, overId);
+                state.selectedNodeId = activeId;
                 state.isDirty = true;
             }),
         setSaving: (value) =>
@@ -203,3 +159,84 @@ export const usePageBuilderStore = create<PageBuilderState>()(
             }),
     })),
 );
+
+function updateNodePropsRecursive(
+    node: EditorNode,
+    nodeId: string,
+    path: Array<string | number>,
+    value: unknown,
+): EditorNode {
+    if (node.id === nodeId) {
+        return {
+            ...node,
+            props: setNestedValue(node.props, path, value),
+        };
+    }
+
+    if (node.children.length === 0) {
+        return node;
+    }
+
+    return {
+        ...node,
+        children: node.children.map((child) => updateNodePropsRecursive(child, nodeId, path, value)),
+    };
+}
+
+function patchNodePropsRecursive(node: EditorNode, nodeId: string, values: Record<string, unknown>): EditorNode {
+    if (node.id === nodeId) {
+        return {
+            ...node,
+            props: {
+                ...node.props,
+                ...values,
+            },
+        };
+    }
+
+    if (node.children.length === 0) {
+        return node;
+    }
+
+    return {
+        ...node,
+        children: node.children.map((child) => patchNodePropsRecursive(child, nodeId, values)),
+    };
+}
+
+function updateRepeaterItemsRecursive(
+    node: EditorNode,
+    nodeId: string,
+    path: Array<string | number>,
+    updater: (items: Array<Record<string, unknown>>) => Array<Record<string, unknown>>,
+): EditorNode {
+    if (node.id === nodeId) {
+        const currentValue = path.reduce<unknown>((carry, segment) => {
+            if (typeof segment === 'number' && Array.isArray(carry)) {
+                return carry[segment];
+            }
+
+            if (typeof segment === 'string' && carry && typeof carry === 'object' && !Array.isArray(carry)) {
+                return (carry as Record<string, unknown>)[segment];
+            }
+
+            return undefined;
+        }, node.props);
+
+        const items = Array.isArray(currentValue) ? cloneValue(currentValue as Array<Record<string, unknown>>) : [];
+
+        return {
+            ...node,
+            props: setNestedValue(node.props, path, updater(items)),
+        };
+    }
+
+    if (node.children.length === 0) {
+        return node;
+    }
+
+    return {
+        ...node,
+        children: node.children.map((child) => updateRepeaterItemsRecursive(child, nodeId, path, updater)),
+    };
+}

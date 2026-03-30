@@ -5,6 +5,44 @@ export type FieldOption = {
     label: string;
 };
 
+export type BlockDataSource = {
+    model?: string | null;
+    path?: string | null;
+    relationship?: string | null;
+    hydration?: string | null;
+};
+
+export type DataBindingModel = {
+    class: string;
+    label: string;
+    surfaces: string[];
+    defaultDisplayColumn?: string | null;
+    defaultValueColumn?: string | null;
+};
+
+export type DataBindingRelationship = {
+    name: string;
+    type: string;
+    relatedModel: string;
+    relatedLabel: string;
+    defaultDisplayColumn?: string | null;
+    defaultValueColumn?: string | null;
+};
+
+export type DataBindingColumn = {
+    name: string;
+    label: string;
+    databaseType: string;
+    cast?: string | null;
+    nullable: boolean;
+};
+
+export type DataBindingPayload = {
+    models: DataBindingModel[];
+    relationshipsByModel: Record<string, DataBindingRelationship[]>;
+    columnsByModel: Record<string, DataBindingColumn[]>;
+};
+
 export type EditorField = {
     name: string;
     label: string;
@@ -33,28 +71,42 @@ export type FileValue = {
 
 export type AvailableBlock = {
     type: string;
+    slug: string;
     title: string;
     description: string;
     group: string;
     icon?: string | null;
     view?: string | null;
+    surface: 'page' | 'navigation' | 'dashboard';
     source: 'system' | 'definition';
     variant?: string;
+    dataSource: BlockDataSource;
     defaults: Record<string, unknown>;
     fields: EditorField[];
+    family: string;
+    acceptsChildren: boolean;
+    allowedChildFamilies: string[];
 };
 
-export type EditorBlock = {
+export type EditorNode = {
     id: string;
     type: string;
+    slug: string;
     label: string;
-    description?: string;
-    group?: string;
-    icon?: string;
+    description?: string | null;
+    group?: string | null;
+    icon?: string | null;
     view?: string | null;
     source: 'system' | 'definition';
+    surface: 'page' | 'navigation' | 'dashboard';
     variant?: string;
-    data: Record<string, unknown>;
+    family?: string | null;
+    acceptsChildren: boolean;
+    allowedChildFamilies: string[];
+    props: Record<string, unknown>;
+    children: EditorNode[];
+    computed_logic?: Record<string, unknown> | null;
+    meta?: Record<string, unknown>;
 };
 
 export type PageMeta = {
@@ -62,13 +114,14 @@ export type PageMeta = {
     title: string;
     slug: string;
     status: 'draft' | 'published';
-    blocks: EditorBlock[];
+    nodes: EditorNode[];
 };
 
 export type PageBuilderProps = {
     page: PageMeta;
     surface: 'page';
-    availableBlocks: AvailableBlock[];
+    definitions: AvailableBlock[];
+    dataBinding: DataBindingPayload;
     routes: {
         index: string;
         store: string;
@@ -76,6 +129,34 @@ export type PageBuilderProps = {
         upload: string;
         publicPreview?: string | null;
     };
+};
+
+export type CmsShellNavigationItem = {
+    key: string;
+    label: string;
+    description: string;
+    href: string;
+    icon: string;
+    section: string;
+    active: boolean;
+};
+
+export type CmsShellProps = {
+    brand: string;
+    product: string;
+    navigation: CmsShellNavigationItem[];
+};
+
+export type SharedPageProps = {
+    appName: string;
+    auth: {
+        user: {
+            id: number;
+            name: string;
+            email: string;
+        } | null;
+    };
+    cmsShell: CmsShellProps;
 };
 
 export type DashboardWidget = {
@@ -90,4 +171,39 @@ export type DashboardWidget = {
 export type DashboardBuilderProps = {
     widgets: DashboardWidget[];
     initialCanvas: DashboardWidget[];
+};
+
+export type NavigationNodeType = 'link' | 'dropdown' | 'mega';
+
+export type NavigationBuilderNode = {
+    id: string;
+    type: NavigationNodeType;
+    label: string;
+    href?: string | null;
+    icon?: string | null;
+    group?: string | null;
+    target?: 'same-tab' | 'new-tab';
+    visibility?: 'always' | 'authenticated' | 'role';
+    description?: string | null;
+    columns?: number | null;
+    children?: NavigationBuilderNode[];
+};
+
+export type NavigationNodeTemplate = {
+    key: NavigationNodeType;
+    title: string;
+    description: string;
+};
+
+export type NavigationBuilderProps = {
+    navigation: {
+        name: string;
+        placement: string;
+        channel: string;
+    };
+    templates: NavigationNodeTemplate[];
+    initialTree: NavigationBuilderNode[];
+    routes: {
+        update: string;
+    };
 };

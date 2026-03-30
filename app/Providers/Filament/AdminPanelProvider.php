@@ -2,10 +2,12 @@
 
 namespace App\Providers\Filament;
 
+use App\StarterKits\StrukturaEngine\Panel\StrukturaPanelBridge;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Navigation\NavigationBuilder;
 use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
@@ -23,6 +25,8 @@ class AdminPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
+        $panelBridge = app(StrukturaPanelBridge::class);
+
         return $panel
             ->default()
             ->id('admin')
@@ -41,7 +45,9 @@ class AdminPanelProvider extends PanelProvider
             ->widgets([
                 AccountWidget::class,
                 FilamentInfoWidget::class,
+                ...$panelBridge->widgets(),
             ])
+            ->navigation(fn (NavigationBuilder $builder): NavigationBuilder => $panelBridge->buildNavigation($builder, $panel))
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
