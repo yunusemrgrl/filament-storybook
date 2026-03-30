@@ -34,18 +34,10 @@ class ComponentDefinition extends Model
     protected static function booted(): void
     {
         static::saving(function (self $definition): void {
-            $definition->handle = Str::of((string) $definition->handle)
-                ->trim()
-                ->snake()
-                ->replace('-', '_')
-                ->value();
+            $definition->handle = static::normalizeHandle((string) $definition->handle);
 
             if ($definition->handle === '') {
-                $definition->handle = Str::of((string) $definition->name)
-                    ->trim()
-                    ->snake()
-                    ->replace('-', '_')
-                    ->value();
+                $definition->handle = static::normalizeHandle((string) $definition->name);
             }
 
             if ($definition->handle === '') {
@@ -202,5 +194,20 @@ class ComponentDefinition extends Model
         asort($views);
 
         return $views;
+    }
+
+    private static function normalizeHandle(string $handle): string
+    {
+        $normalized = Str::of($handle)
+            ->trim()
+            ->replace([' ', '-'], '_')
+            ->lower()
+            ->replaceMatches('/[^a-z0-9._]+/', '')
+            ->replaceMatches('/_+/', '_')
+            ->replaceMatches('/\.{2,}/', '.')
+            ->trim('._')
+            ->value();
+
+        return $normalized;
     }
 }

@@ -83,6 +83,7 @@ readonly class ComponentPropDefinition implements Arrayable
 
         return match ($this->type) {
             ComponentPropType::Boolean => $definition->boolean(),
+            ComponentPropType::Number => $definition->number(),
             ComponentPropType::Select => $definition->select($this->optionsForSelect()),
             ComponentPropType::File => $definition
                 ->file()
@@ -103,6 +104,7 @@ readonly class ComponentPropDefinition implements Arrayable
     {
         return match ($this->type) {
             ComponentPropType::Boolean => (bool) $value,
+            ComponentPropType::Number => $this->normalizeNumberValue($value),
             ComponentPropType::Select => $this->normalizeSelectValue($value),
             ComponentPropType::File => $this->normalizeFileValue($value),
             ComponentPropType::Repeater => $this->normalizeRepeaterValue($value),
@@ -146,6 +148,15 @@ readonly class ComponentPropDefinition implements Arrayable
         }
 
         return trim($value);
+    }
+
+    private function normalizeNumberValue(mixed $value): ?int
+    {
+        if (! is_numeric($value)) {
+            return null;
+        }
+
+        return (int) $value;
     }
 
     private function normalizeSelectValue(mixed $value): string

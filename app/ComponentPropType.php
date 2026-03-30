@@ -5,6 +5,7 @@ namespace App;
 enum ComponentPropType: string
 {
     case Text = 'text';
+    case Number = 'number';
     case Boolean = 'boolean';
     case Select = 'select';
     case File = 'file';
@@ -17,6 +18,7 @@ enum ComponentPropType: string
     {
         return [
             self::Text->value => 'Text',
+            self::Number->value => 'Number',
             self::Boolean->value => 'Boolean',
             self::Select->value => 'Select',
             self::File->value => 'File Upload',
@@ -31,6 +33,7 @@ enum ComponentPropType: string
     {
         return [
             self::Text->value => 'Text',
+            self::Number->value => 'Number',
             self::Boolean->value => 'Boolean',
             self::Select->value => 'Select',
         ];

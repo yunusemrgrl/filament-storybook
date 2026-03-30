@@ -22,19 +22,26 @@ class ComponentDefinitionFactory extends Factory
             'handle' => Str::snake($name),
             'surface' => ComponentSurface::Page,
             'category' => 'General',
-            'view' => 'page-builder.components.hero-banner',
+            'view' => 'page-builder.components.filament-primitive',
             'description' => fake()->sentence(),
             'props' => [
                 [
-                    'name' => 'headline',
-                    'label' => 'Headline',
+                    'name' => 'payload_path',
+                    'label' => 'payloadPath',
                     'type' => ComponentPropType::Text->value,
-                    'group' => 'Content',
+                    'group' => 'Data Source',
                     'required' => true,
+                ],
+                [
+                    'name' => 'data_source_model',
+                    'label' => 'dataSourceModel',
+                    'type' => ComponentPropType::Text->value,
+                    'group' => 'Data Source',
                 ],
             ],
             'default_values' => [
-                'headline' => fake()->sentence(3),
+                'payload_path' => 'payload.path',
+                'data_source_model' => 'App\\Models\\User',
             ],
             'is_active' => true,
         ];
